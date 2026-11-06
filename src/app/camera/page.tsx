@@ -43,7 +43,7 @@ type Screen = "viewfinder" | "preview" | "uploading" | "done" | "error";
 async function captureVideoFrame(
   video: HTMLVideoElement,
   canvas: HTMLCanvasElement,
-  reticleEl?: HTMLElement | null,
+  _reticleEl?: HTMLElement | null,
   maxDim = 1600,
   quality = 0.88
 ): Promise<{ blob: Blob; width: number; height: number } | null> {
@@ -52,10 +52,10 @@ async function captureVideoFrame(
     const vh = video.videoHeight;
     if (!vw || !vh) return null;
 
-    const { sx, sy, sw, sh } = getReticleCropCoordinates(video, reticleEl);
-
-    let dw = Math.round(sw);
-    let dh = Math.round(sh);
+    // Preserva a imagem completa do animal sem recortar a anatomia.
+    // A mira (retículo) na tela serve como guia de mira visual do operador, não como tesoura de recorte.
+    let dw = vw;
+    let dh = vh;
 
     if (dw > maxDim || dh > maxDim) {
       if (dw > dh) {
@@ -72,7 +72,7 @@ async function captureVideoFrame(
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return null;
 
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, dw, dh);
+    ctx.drawImage(video, 0, 0, vw, vh, 0, 0, dw, dh);
 
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), "image/jpeg", quality)
@@ -285,7 +285,7 @@ function CameraContent() {
         inFlightServerCheck = true;
         try {
           const offCanvas = document.createElement("canvas");
-          const miniFrame = await captureVideoFrame(video, offCanvas, reticleRef.current, 512, 0.85);
+          const miniFrame = await captureVideoFrame(video, offCanvas, null, 640, 0.85);
           if (miniFrame && active) {
             const aiRes = await evaluatePhotoScoreBeforeUpload(miniFrame.blob);
             if (active && typeof aiRes.score === "number") {
@@ -335,7 +335,7 @@ function CameraContent() {
       return;
     }
 
-    const result = await captureVideoFrame(video, canvas, reticleRef.current, 1600, 0.88);
+    const result = await captureVideoFrame(video, canvas, null, 1600, 0.88);
     if (!result) {
       setCamErr("Não foi possível capturar o quadro. Envie da galeria.");
       return;
