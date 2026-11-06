@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/Toast";
 import ThemeToggle from "@/components/ThemeToggle";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { BluetoothStatusButton } from "@/components/BluetoothStatusButton";
 
 export interface AppHeaderProps {
   title?: React.ReactNode;
@@ -162,9 +163,12 @@ export function AppHeader({
           )}
         </nav>
 
-        {/* Lado Direito: Ações da Página, PWA, Tema e Botão Sair Sempre Visível */}
+        {/* Lado Direito: Ações da Página, RFID Bluetooth, PWA, Tema e Botão Sair Sempre Visível */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {actions}
+
+          {/* Botão de Leitor RFID ESP32 via Bluetooth */}
+          <BluetoothStatusButton />
 
           {/* Botão de Instalação PWA: ícone no mobile, botão com texto no desktop */}
           <div className="hidden sm:block">

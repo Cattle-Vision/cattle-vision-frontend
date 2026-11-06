@@ -2,10 +2,15 @@
 
 /**
  * Página de Cadastro de Novo Animal (`src/app/animal/new/page.tsx`).
+ *
+ * Funcionalidades:
+ * - Priorização de Apelido/Nome do animal como principal campo de identificação de manejo.
+ * - Pré-preenchimento automático de tags RFID lidas via ESP32 Bluetooth.
+ * - Tratamento inteligente de duplicidade com adesão instantânea à Guarda Compartilhada.
  */
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Camera, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Camera, Check, Sparkles, Tag, Users } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { BREEDS, SEX_OPTIONS, isValidTag, normalizeTag } from "@/lib/animal";
 import { apiFetch } from "@/lib/api";
@@ -27,8 +32,11 @@ function NewAnimalForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [goToCamera, setGoToCamera] = useState(true);
+
+  const initialTag = (searchParams.get("tag") ?? "").toUpperCase();
+
   const [formData, setFormData] = useState<AnimalFormState>({
-    tag: (searchParams.get("tag") ?? "").toUpperCase(),
+    tag: initialTag,
     name: "",
     breed: "Nelore",
     sex: "Fêmea",
@@ -41,9 +49,12 @@ function NewAnimalForm() {
   };
 
   const generateSampleTag = () => {
-    const prefix = formData.breed.slice(0, 3).toUpperCase() || "BOV";
-    const num = String(Math.floor(1000 + Math.random() * 9000));
-    setField("tag", `${prefix}-${num}`);
+    let hex = "E280";
+    const chars = "0123456789ABCDEF";
+    for (let i = 0; i < 20; i++) {
+      hex += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setField("tag", hex);
   };
 
   const handleSubmit = async (e: React.FormEvent, openCameraAfter: boolean) => {
@@ -51,7 +62,7 @@ function NewAnimalForm() {
     const tag = normalizeTag(formData.tag);
 
     if (!isValidTag(tag)) {
-      toast("Informe um brinco válido (mínimo 2 caracteres), ex: NEL-0142.", "error");
+      toast("Informe uma tag RFID ou brinco válido (mínimo 2 caracteres).", "error");
       return;
     }
     if (!formData.breed.trim()) {
@@ -82,7 +93,7 @@ function NewAnimalForm() {
       });
 
       if (data?.id) {
-        toast("Animal cadastrado com sucesso!", "success");
+        toast("Animal cadastrado com sucesso (Propriedade Principal)!", "success");
         const label = data.name || data.tag || tag;
         if (openCameraAfter) {
           router.push(`/camera?animalId=${data.id}&animalName=${encodeURIComponent(label)}`);
@@ -92,11 +103,18 @@ function NewAnimalForm() {
         return;
       }
     } catch (err: any) {
-      if (err?.message?.includes("já cadastrado") || err?.message?.includes("409")) {
-        toast("Brinco já existente.", "info");
-      } else {
-        toast(err?.message || "Erro ao cadastrar o animal.", "error");
+      // Se já existia e o backend concedeu guarda compartilhada:
+      if (err?.data?.sharedGranted && err?.data?.id) {
+        toast(err.message || "Animal já existente. Guarda Compartilhada ativada!", "info");
+        router.push(`/animal/${err.data.id}`);
+        return;
       }
+      if (err?.data?.id) {
+        toast("Animal já cadastrado em sua conta.", "info");
+        router.push(`/animal/${err.data.id}`);
+        return;
+      }
+      toast(err?.message || "Erro ao cadastrar o animal.", "error");
       setLoading(false);
     }
   };
@@ -107,7 +125,7 @@ function NewAnimalForm() {
         showBack
         backHref="/dashboard"
         title="Novo Animal"
-        subtitle="Cadastro e Avaliação ICS"
+        subtitle="Cadastro Zootécnico & RFID"
       />
 
       <main className="flex-1 p-4 sm:p-6">
@@ -116,49 +134,67 @@ function NewAnimalForm() {
             onSubmit={(e) => handleSubmit(e, true)}
             className="card p-5 sm:p-7 flex flex-col gap-6"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="field-label !mb-0" htmlFor="tag-field">
-                    Brinco / Identificador <span className="text-red-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={generateSampleTag}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Gerar código
-                  </button>
-                </div>
-                <input
-                  id="tag-field"
-                  type="text"
-                  value={formData.tag}
-                  onChange={(e) => setField("tag", e.target.value.toUpperCase())}
-                  className="field-input font-mono-tag font-bold tracking-wider uppercase"
-                  placeholder="Ex: NEL-0142"
-                  required
-                  autoComplete="off"
-                />
+            {/* Aviso quando a Tag veio de leitura do ESP32 */}
+            {initialTag && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300">
+                <Tag className="w-4 h-4 shrink-0" />
+                <span>
+                  Tag RFID <strong>{initialTag.length > 12 ? `${initialTag.slice(0, 8)}...` : initialTag}</strong> identificada pelo sensor e preenchida automaticamente.
+                </span>
               </div>
+            )}
 
-              <div>
-                <label className="field-label" htmlFor="name-field">
-                  Apelido / Nome (Opcional)
-                </label>
-                <input
-                  id="name-field"
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setField("name", e.target.value)}
-                  className="field-input"
-                  placeholder="Ex: Mimosa, Estrela"
-                  autoComplete="off"
-                />
-              </div>
+            {/* Apelido/Nome do Animal em Destaque Principal */}
+            <div>
+              <label className="field-label" htmlFor="name-field">
+                Apelido / Nome do Animal <span className="text-emerald-600 dark:text-emerald-400 font-bold">(Principal)</span>
+              </label>
+              <input
+                id="name-field"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setField("name", e.target.value)}
+                className="field-input text-base font-extrabold"
+                placeholder="Ex: Mimosa, Estrela, Vaca 42, Nelore 105"
+                autoFocus={!initialTag}
+                autoComplete="off"
+              />
+              <p className="text-[11px] text-theme-secondary mt-1">
+                Nome de fácil reconhecimento no curral e no manejo diário.
+              </p>
             </div>
 
+            {/* Código RFID / Brinco (Secundário) */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="field-label !mb-0" htmlFor="tag-field">
+                  Identificador RFID / Brinco Eletrônico <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={generateSampleTag}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Gerar RFID 24-Hex
+                </button>
+              </div>
+              <input
+                id="tag-field"
+                type="text"
+                value={formData.tag}
+                onChange={(e) => setField("tag", e.target.value.toUpperCase())}
+                className="field-input font-mono text-xs tracking-wider uppercase font-bold"
+                placeholder="Ex: E2801160600002047E7A5A01 ou NEL-0142"
+                required
+                autoComplete="off"
+              />
+              <p className="text-[11px] text-theme-secondary mt-1">
+                Código transmitido pelo leitor ESP32 ou código impresso no brinco visual.
+              </p>
+            </div>
+
+            {/* Raça */}
             <div>
               <label className="field-label">
                 Raça <span className="text-red-500">*</span>
@@ -184,6 +220,7 @@ function NewAnimalForm() {
               </div>
             </div>
 
+            {/* Sexo */}
             <div>
               <label className="field-label">
                 Sexo <span className="text-red-500">*</span>
@@ -221,6 +258,7 @@ function NewAnimalForm() {
               </div>
             </div>
 
+            {/* Peso e Idade */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="field-label" htmlFor="weight-field">
@@ -258,29 +296,33 @@ function NewAnimalForm() {
               </div>
             </div>
 
-            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+            {/* Botões de Ação */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary flex-1 py-4 text-sm"
+                className="btn-primary flex-1 py-3.5 min-h-[48px] text-sm"
               >
                 {loading && goToCamera ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Camera className="w-4 h-4" />
                 )}
-                Cadastrar e Fotografar Agora
+                <span>Cadastrar e Abrir Câmera IA</span>
               </button>
+
               <button
                 type="button"
                 disabled={loading}
                 onClick={(e) => handleSubmit(e, false)}
-                className="btn-secondary py-4 px-5 text-sm"
+                className="btn-secondary py-3.5 px-6 min-h-[48px] text-sm"
               >
                 {loading && !goToCamera ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : null}
-                Salvar e Abrir Ficha
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                <span>Apenas Salvar Ficha</span>
               </button>
             </div>
           </form>
@@ -294,7 +336,13 @@ function NewAnimalForm() {
 
 export default function NewAnimalPage() {
   return (
-    <Suspense fallback={<div className="min-h-[100dvh] bg-theme-bg" />}>
+    <Suspense
+      fallback={
+        <div className="min-h-[100dvh] flex items-center justify-center bg-theme-bg">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+        </div>
+      }
+    >
       <NewAnimalForm />
     </Suspense>
   );

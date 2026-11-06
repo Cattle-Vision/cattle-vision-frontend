@@ -30,6 +30,38 @@ export interface Photo {
   createdAt?: string;
 }
 
+export interface CustodyUser {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface AnimalCollaboratorRecord {
+  id: string;
+  animalId: string;
+  userId: number;
+  role: string;
+  createdAt: string;
+  user: CustodyUser;
+}
+
+export interface CustodyInfo {
+  isOwner: boolean;
+  isCollaborator: boolean;
+  canManage: boolean;
+  owner: CustodyUser;
+  collaborators: AnimalCollaboratorRecord[];
+}
+
+export interface RfidScanResult {
+  registered: boolean;
+  rfid: string;
+  animal?: Animal;
+  sharedGranted?: boolean;
+  isOwner?: boolean;
+  message: string;
+}
+
 export interface Animal {
   id: string;
   tag: string;
@@ -39,6 +71,9 @@ export interface Animal {
   weight: number;
   age: number;
   ownerId: number;
+  isOwner?: boolean;
+  isShared?: boolean;
+  custody?: CustodyInfo;
   createdAt?: string;
   updatedAt?: string;
   ics?: IcsData | null;

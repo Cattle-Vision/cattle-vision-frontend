@@ -3,7 +3,12 @@
 /**
  * Painel Principal do Operador (`src/app/dashboard/page.tsx`).
  *
- * Integra com a API desacoplada do backend.
+ * Funcionalidades:
+ * - Priorização de apelido/nome do animal como título principal.
+ * - Ocultação de tags RFID longas/aleatórias em pills discretos copiáveis.
+ * - Identificação visual de Guarda Compartilhada (proprietário vs colaborador).
+ * - Filtros rápidos: Todos, Meus Animais, Guarda Compartilhada, Com Fotos, Sem Fotos.
+ * - Estatísticas zootécnicas e enquadramento anatômico de fotos.
  */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -23,6 +28,9 @@ import {
   Sparkles,
   CheckCircle2,
   ShieldCheck,
+  Users,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Animal, getPhotoUrl } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
@@ -31,7 +39,7 @@ import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
 import { useToast } from "@/components/ui/Toast";
 
-type FilterMode = "all" | "with_photos" | "without_photos";
+type FilterMode = "all" | "owned" | "shared" | "with_photos" | "without_photos";
 
 function Skeleton() {
   return (
@@ -46,28 +54,47 @@ function Skeleton() {
   );
 }
 
-function AnimalCard({ animal }: { animal: Animal }) {
+function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?: number }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const [imgErr, setImgErr] = useState(false);
+
   const lastPhoto = animal.photos?.[0];
   const photoUrl = lastPhoto ? getPhotoUrl(lastPhoto.id) : null;
-  const [imgErr, setImgErr] = useState(false);
-  const label = animal.name || animal.tag;
+  const displayName = animal.name?.trim() || "Vaca Sem Apelido";
   const photoCount = animal.photos?.length ?? 0;
-  const cameraUrl = `/camera?animalId=${animal.id}&animalName=${encodeURIComponent(label)}`;
+  const cameraUrl = `/camera?animalId=${animal.id}&animalName=${encodeURIComponent(displayName)}`;
   const bestScore =
     lastPhoto && typeof lastPhoto.score === "number" ? Math.round(lastPhoto.score) : null;
+
+  const isShared = animal.isShared || (currentUserId && animal.ownerId !== currentUserId);
+
+  const copyRfid = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(animal.tag);
+    setCopied(true);
+    toast(`Tag RFID copiada: ${animal.tag}`, "info");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shortTag =
+    animal.tag.length > 12
+      ? `${animal.tag.slice(0, 6)}...${animal.tag.slice(-4)}`
+      : animal.tag;
 
   return (
     <div className="card overflow-hidden group relative hover:shadow-lg hover:border-emerald-500/60 transition-all duration-200 flex flex-col justify-between">
       <Link
         href={`/animal/${animal.id}`}
         className="block focus:outline-none"
-        aria-label={`Ver ficha de ${label}`}
+        aria-label={`Ver ficha de ${displayName}`}
       >
         <div className="aspect-[16/10] relative overflow-hidden bg-theme-surface-2">
           {photoUrl && !imgErr ? (
             <img
               src={photoUrl}
-              alt={label}
+              alt={displayName}
               loading="lazy"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               onError={() => setImgErr(true)}
@@ -81,12 +108,21 @@ function AnimalCard({ animal }: { animal: Animal }) {
 
           <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/65 to-transparent pointer-events-none" />
 
-          {/* Brinco */}
-          <div className="absolute top-2 left-2 font-mono-tag text-xs font-bold px-2 py-0.5 rounded-md bg-slate-900/85 text-white backdrop-blur-md shadow-xs tracking-wider">
-            {animal.tag}
+          {/* Badge Superior Esquerdo: Guarda Compartilhada ou Dono */}
+          <div className="absolute top-2 left-2 flex items-center gap-1.5">
+            {isShared ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-600/90 text-white backdrop-blur-md shadow-xs">
+                <Users className="w-3 h-3" />
+                Guarda Compartilhada
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900/85 text-emerald-300 backdrop-blur-md shadow-xs">
+                Proprietário
+              </span>
+            )}
           </div>
 
-          {/* Badge ICS em Destaque */}
+          {/* Badge ICS */}
           <div className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/90 text-white backdrop-blur-md shadow-xs">
             <Sparkles className="w-3 h-3" />
             ICS: Em dev.
@@ -108,15 +144,34 @@ function AnimalCard({ animal }: { animal: Animal }) {
         </div>
 
         <div className="p-4 pb-3">
-          <div className="flex items-start justify-between gap-2 mb-1.5">
+          {/* Apelido em Destaque Absoluto */}
+          <div className="flex items-start justify-between gap-2 mb-1">
             <h3 className="font-extrabold text-base text-theme-primary truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-              {animal.name ? `${animal.name}` : `Brinco ${animal.tag}`}
+              {displayName}
             </h3>
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0">
               {animal.breed}
             </span>
           </div>
 
+          {/* Tag RFID Oculta/Discreta com Botão de Copiar */}
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <button
+              type="button"
+              onClick={copyRfid}
+              title={`Clique para copiar a tag RFID completa: ${animal.tag}`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium text-theme-muted bg-theme-surface-2 hover:bg-theme-surface hover:text-theme-primary border border-theme transition"
+            >
+              <span>RFID: {shortTag}</span>
+              {copied ? (
+                <Check className="w-3 h-3 text-emerald-500" />
+              ) : (
+                <Copy className="w-3 h-3 opacity-60" />
+              )}
+            </button>
+          </div>
+
+          {/* Dados Zootécnicos */}
           <div className="flex items-center gap-3 text-xs font-medium text-theme-secondary">
             <span>{animal.sex}</span>
             <span>•</span>
@@ -146,7 +201,7 @@ function AnimalCard({ animal }: { animal: Animal }) {
         <Link
           href={cameraUrl}
           className="btn-primary flex-1 py-2.5 min-h-[44px] text-xs font-bold"
-          aria-label={`Fotografar ${label}`}
+          aria-label={`Fotografar ${displayName}`}
         >
           <Camera className="w-4 h-4" />
           Fotografar
@@ -173,6 +228,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, isAdmin, loading: authLoading } = useAuth();
   const { toast, confirm } = useToast();
+
+  const currentUserId = user ? Number(user.id) : undefined;
 
   const loadAnimals = useCallback(async () => {
     try {
@@ -226,17 +283,24 @@ export default function DashboardPage() {
     const totalAnimals = animals.length;
     const totalPhotos = animals.reduce((acc, a) => acc + (a.photos?.length ?? 0), 0);
     const withPhotos = animals.filter((a) => (a.photos?.length ?? 0) > 0).length;
+    const sharedCount = animals.filter(
+      (a) => a.isShared || (currentUserId && a.ownerId !== currentUserId)
+    ).length;
     const avgWeight =
       totalAnimals > 0
         ? Math.round(animals.reduce((acc, a) => acc + (Number(a.weight) || 0), 0) / totalAnimals)
         : 0;
     const coverage = totalAnimals > 0 ? Math.round((withPhotos / totalAnimals) * 100) : 0;
-    return { totalAnimals, totalPhotos, withPhotos, avgWeight, coverage };
-  }, [animals]);
+    return { totalAnimals, totalPhotos, withPhotos, sharedCount, avgWeight, coverage };
+  }, [animals, currentUserId]);
 
   const filtered = useMemo(() => {
     return animals.filter((a) => {
       const photoCount = a.photos?.length ?? 0;
+      const isShared = a.isShared || (currentUserId && a.ownerId !== currentUserId);
+
+      if (filterMode === "owned" && isShared) return false;
+      if (filterMode === "shared" && !isShared) return false;
       if (filterMode === "with_photos" && photoCount === 0) return false;
       if (filterMode === "without_photos" && photoCount > 0) return false;
 
@@ -244,11 +308,11 @@ export default function DashboardPage() {
       if (!q) return true;
       return (
         a.tag.toUpperCase().includes(q) ||
-        a.name.toUpperCase().includes(q) ||
+        (a.name && a.name.toUpperCase().includes(q)) ||
         a.breed.toUpperCase().includes(q)
       );
     });
-  }, [animals, query, filterMode]);
+  }, [animals, query, filterMode, currentUserId]);
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary">
@@ -266,12 +330,14 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <div className="card p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-theme-muted">
-                Animais
+                Total de Animais
               </p>
               <p className="text-2xl font-extrabold text-theme-primary mt-1">
                 {stats.totalAnimals}
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Cadastrados no lote</p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">
+                {stats.sharedCount > 0 ? `${stats.sharedCount} compartilhados` : "Rebanho ativo"}
+              </p>
             </div>
             <div className="card p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
@@ -301,7 +367,7 @@ export default function DashboardPage() {
                 {stats.avgWeight}{" "}
                 <span className="text-sm font-semibold text-theme-secondary">kg</span>
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Média do lote</p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">Média do rebanho</p>
             </div>
           </div>
         )}
@@ -313,7 +379,7 @@ export default function DashboardPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar por brinco (ex: NEL-0142), apelido ou raça…"
+                placeholder="Buscar por apelido, raça ou RFID…"
                 className="field-input pl-10"
               />
             </div>
@@ -323,6 +389,8 @@ export default function DashboardPage() {
               {(
                 [
                   { id: "all", label: "Todos" },
+                  { id: "owned", label: "Meus" },
+                  { id: "shared", label: "Compartilhados" },
                   { id: "with_photos", label: "Com fotos" },
                   { id: "without_photos", label: "Sem fotos" },
                 ] as const
@@ -383,7 +451,7 @@ export default function DashboardPage() {
               <p className="text-xs text-theme-secondary mt-1 max-w-sm mx-auto">
                 {query || filterMode !== "all"
                   ? "Limpe a busca ou altere o filtro para visualizar todos os animais."
-                  : "Cadastre o brinco e os dados básicos do bovino para liberar a captura guiada de fotos."}
+                  : "Cadastre o apelido, RFID/brinco e os dados básicos do bovino para liberar a captura guiada de fotos."}
               </p>
             </div>
             {query || filterMode !== "all" ? (
@@ -415,7 +483,7 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((a) => (
-              <AnimalCard key={a.id} animal={a} />
+              <AnimalCard key={a.id} animal={a} currentUserId={currentUserId} />
             ))}
           </div>
         )}

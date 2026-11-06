@@ -11,6 +11,8 @@
  * Possui interceptador Self-Healing que limpa credenciais inválidas em respostas 401.
  */
 
+import { RfidScanResult, Animal } from "./types";
+
 const TOKEN_KEY = "cattle_vision_jwt_token";
 
 export class ApiError extends Error {
@@ -153,6 +155,58 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
     return (await response.json()) as T;
   }
   return (await response.text()) as unknown as T;
+}
+
+/**
+ * Envia código RFID (lido via ESP32 Bluetooth ou manual) para identificação global
+ * e adesão automática à Guarda Compartilhada.
+ */
+export async function scanRfidTag(rfid: string): Promise<RfidScanResult> {
+  return apiFetch<RfidScanResult>("/api/animals/rfid-scan", {
+    method: "POST",
+    body: { rfid },
+  });
+}
+
+/**
+ * Convida manualmente um colaborador para a guarda compartilhada de um animal.
+ */
+export async function addCollaborator(
+  animalId: string,
+  payload: { email?: string; userId?: number }
+): Promise<{ added: boolean; message: string; custody?: any }> {
+  return apiFetch(`/api/animals/${encodeURIComponent(animalId)}/collaborators`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+/**
+ * Remove um colaborador da guarda compartilhada de um animal.
+ */
+export async function removeCollaborator(
+  animalId: string,
+  targetUserId: number
+): Promise<{ success: boolean; message: string; custody?: any }> {
+  return apiFetch(
+    `/api/animals/${encodeURIComponent(animalId)}/collaborators/${targetUserId}`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+/**
+ * Transfere a guarda definitiva / propriedade principal do animal para outro produtor.
+ */
+export async function transferOwnership(
+  animalId: string,
+  newOwnerId: number
+): Promise<{ success: boolean; message: string; custody?: any }> {
+  return apiFetch(`/api/animals/${encodeURIComponent(animalId)}/transfer-ownership`, {
+    method: "POST",
+    body: { newOwnerId },
+  });
 }
 
 /**
