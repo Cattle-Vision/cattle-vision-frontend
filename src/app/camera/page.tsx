@@ -26,6 +26,7 @@ import {
   Loader2,
   Activity,
   SwitchCamera,
+  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { compressImageFile, formatBytes } from "@/lib/image-client";
@@ -409,7 +410,7 @@ function CameraContent() {
           score: data.score,
           lowQuality: Boolean(data.lowQuality),
           source: "yolo-onnx",
-          feedback: prev?.feedback || "Foto gravada no dataset oficial para IA de ICS.",
+          feedback: prev?.feedback || "Foto anatômica registrada para avaliação de ICS.",
           box: prev?.box,
         }));
       }
@@ -475,19 +476,19 @@ function CameraContent() {
 
         <div className="text-center max-w-sm">
           <h2 className="text-2xl font-extrabold text-white mb-2">
-            {savedOffline ? "Foto salva no dispositivo!" : "Foto salva no dataset!"}
+            {savedOffline ? "Foto salva no dispositivo!" : "Foto e Registro Salvos!"}
           </h2>
           <p className="text-slate-400 text-sm leading-relaxed">
             {savedOffline ? (
               <>
                 A imagem de <strong className="text-white">{animalName || "animal"}</strong> será
-                enviada ao dataset assim que houver conexão com a internet.
+                sincronizada com o servidor assim que houver conexão com a internet.
               </>
             ) : (
               <>
-                Imagem posterior de{" "}
+                Imagem anatômica de{" "}
                 <strong className="text-white">{animalName || "animal"}</strong> registrada com
-                sucesso para o dataset oficial da IA de ICS.
+                sucesso. O módulo de avaliação de ICS processará a análise zootécnica.
               </>
             )}
           </p>
@@ -501,7 +502,7 @@ function CameraContent() {
               }`}
             >
               <Activity className="w-3.5 h-3.5" />
-              Confiança IA Registrada: {Math.round(finalScore)}%
+              Enquadramento Anatômico: {Math.round(finalScore)}%
             </div>
           )}
         </div>
@@ -600,7 +601,7 @@ function CameraContent() {
             {animalName || "Captura Guiada"}
           </p>
           <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-emerald-400 truncate">
-            Vista Posterior · Dataset ICS
+            Vista Posterior · Avaliação ICS
           </p>
         </div>
 
@@ -826,7 +827,7 @@ function CameraContent() {
                         }`}
                       />
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                        Diagnóstico de Confiança
+                        Qualidade de Enquadramento
                       </span>
                     </div>
                     <span
@@ -838,7 +839,7 @@ function CameraContent() {
                           : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                       }`}
                     >
-                      Confiança: {Math.round(previewAnalysis.score)}%
+                      Enquadramento: {Math.round(previewAnalysis.score)}%
                     </span>
                   </div>
 
@@ -856,6 +857,14 @@ function CameraContent() {
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                     )}
                     <span>{previewAnalysis.feedback}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-2 mt-1 border-t border-white/10">
+                    <span className="text-slate-400 font-medium">Predição ICS (ECC):</span>
+                    <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      Em desenvolvimento
+                    </span>
                   </div>
                 </div>
               ) : null}
@@ -876,10 +885,10 @@ function CameraContent() {
             <button
               onClick={handleSave}
               disabled={scoringPreview}
-              className="flex-1 btn-primary py-3 min-h-[44px] rounded-lg text-xs sm:text-sm active:scale-98 touch-manipulation justify-center"
+              className="flex-1 btn-primary py-3 min-h-[44px] rounded-lg text-xs sm:text-sm active:scale-98 touch-manipulation justify-center font-bold"
             >
               <Check className="w-4 h-4" />
-              Salvar no Dataset
+              Salvar Avaliação
             </button>
           </div>
         </div>
@@ -890,9 +899,9 @@ function CameraContent() {
           <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 flex flex-col items-center gap-4 max-w-xs w-full text-center shadow-2xl">
             <RefreshCcw className="w-10 h-10 animate-spin text-emerald-400" />
             <div>
-              <p className="text-white font-extrabold text-base">Salvando foto no dataset…</p>
+              <p className="text-white font-extrabold text-base">Processando e salvando imagem…</p>
               <p className="text-slate-400 text-xs mt-1">
-                Processando imagem para o banco de dados oficial
+                Registrando anatomia para cálculo de ICS
               </p>
             </div>
           </div>

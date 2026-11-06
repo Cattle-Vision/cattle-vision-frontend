@@ -21,10 +21,11 @@ import {
   Check,
   Activity,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import PhotoGrid from "@/components/PhotoGrid";
 import PhotoLightbox from "@/components/PhotoLightbox";
-import ThemeToggle from "@/components/ThemeToggle";
+import AppHeader from "@/components/AppHeader";
 import { useToast } from "@/components/ui/Toast";
 import { Animal, Photo } from "@/lib/types";
 import { BREEDS, SEX_OPTIONS } from "@/lib/animal";
@@ -338,37 +339,17 @@ export default function AnimalProfilePage() {
         onChange={handleSelectFromGallery}
       />
 
-      <header className="glass-header sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 h-12 sm:h-14 flex items-center justify-between gap-1.5 sm:gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-            <button
-              onClick={() => router.push("/dashboard")}
-              aria-label="Voltar ao painel"
-              className="p-2 rounded-md min-w-[38px] min-h-[38px] flex items-center justify-center text-theme-secondary hover:bg-theme-surface-2 transition active:scale-95 touch-manipulation shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-sm sm:text-base font-bold text-theme-primary truncate max-w-[100px] xs:max-w-[170px] sm:max-w-xs">
-                  {label}
-                </h1>
-                <span className="font-mono-tag text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-md bg-slate-900 dark:bg-emerald-950 text-white dark:text-emerald-300 shrink-0">
-                  {animal.tag}
-                </span>
-              </div>
-              <p className="text-[10px] sm:text-xs text-theme-secondary truncate hidden xs:block">
-                {animal.breed} · {animal.sex} · {photoCount} {photoCount === 1 ? "foto" : "fotos"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0">
-            <ThemeToggle />
+      <AppHeader
+        showBack
+        backHref="/dashboard"
+        title={label}
+        subtitle={`${animal.tag} · ${animal.breed} · ${animal.sex}`}
+        actions={
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="p-2 rounded-md min-w-[38px] min-h-[38px] flex items-center justify-center text-theme-secondary hover:bg-theme-surface-2 transition active:scale-95 touch-manipulation"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-theme-secondary hover:bg-theme-surface-2 border border-theme active:scale-95 transition touch-manipulation"
               title="Editar dados do animal"
               aria-label="Editar dados do animal"
             >
@@ -377,15 +358,15 @@ export default function AnimalProfilePage() {
             <button
               type="button"
               onClick={handleDeleteAnimal}
-              className="p-2 rounded-md min-w-[38px] min-h-[38px] flex items-center justify-center text-theme-secondary hover:text-red-500 hover:bg-red-500/10 transition active:scale-95 touch-manipulation"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 active:scale-95 transition touch-manipulation"
               title="Excluir animal"
               aria-label="Excluir animal"
             >
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="flex-1 p-3 sm:p-6 max-w-4xl mx-auto w-full flex flex-col gap-5 pb-20 sm:pb-8">
         <div className="card p-4 sm:p-6">
@@ -393,7 +374,7 @@ export default function AnimalProfilePage() {
             <div>
               <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md mb-2">
                 <Activity className="w-3 h-3" />
-                Ficha Zootécnica · Dataset ICS
+                Ficha Zootécnica & Avaliação ICS
               </span>
               <h2 className="text-xl font-extrabold text-theme-primary">
                 {animal.name ? `${animal.name} (${animal.tag})` : `Brinco ${animal.tag}`}
@@ -405,12 +386,12 @@ export default function AnimalProfilePage() {
                 type="button"
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="btn-secondary py-2.5 px-4 text-xs justify-center min-h-[42px]"
+                className="btn-secondary py-2.5 px-4 text-xs font-bold justify-center min-h-[44px]"
               >
                 <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 Enviar da Galeria
               </button>
-              <Link href={cameraUrl} className="btn-primary py-2.5 px-4 text-xs justify-center min-h-[42px]">
+              <Link href={cameraUrl} className="btn-primary py-2.5 px-4 text-xs font-bold justify-center min-h-[44px]">
                 <Camera className="w-4 h-4" />
                 Câmera IA ao Vivo
               </Link>
@@ -429,14 +410,46 @@ export default function AnimalProfilePage() {
           </div>
         </div>
 
+        {/* Card de Diagnóstico do Índice de Condição Corporal (ICS) */}
+        <div className="card p-4 sm:p-5 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-theme-surface to-emerald-500/5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 border border-amber-500/25">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-base text-theme-primary">
+                    Índice de Condição Corporal (ICS)
+                  </h3>
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                    Em desenvolvimento
+                  </span>
+                </div>
+                <p className="text-xs text-theme-secondary mt-1.5 leading-relaxed">
+                  O módulo de cálculo zootécnico automático por rede neural profunda está em fase final de validação.
+                  As imagens anatômicas registradas com alta qualidade de enquadramento serão calculadas de forma retroativa assim que a inferência for conectada.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 pt-3 sm:pt-0 border-theme/60 shrink-0">
+              <span className="text-[10px] uppercase font-bold text-theme-muted">Validação de Enquadramento</span>
+              <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                {photoCount > 0 ? `${photoCount} foto(s) registrada(s)` : "Aguardando 1ª foto"}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div>
           <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
             <div>
               <h3 className="text-base font-extrabold text-theme-primary">
-                Galeria do Dataset · Região Posterior
+                Histórico Fotográfico · Avaliação Posterior
               </h3>
               <p className="text-xs text-theme-secondary mt-0.5">
-                Clique em qualquer imagem para ampliar em tela cheia ou verificar a Confiança IA
+                Clique em qualquer imagem para ampliar em tela cheia ou conferir a qualidade do enquadramento anatômico
               </p>
             </div>
 
@@ -445,8 +458,8 @@ export default function AnimalProfilePage() {
                 type="button"
                 onClick={handleRecalibrateAnimal}
                 disabled={recalibratingAnimal}
-                className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5 shrink-0 border-emerald-500/30 hover:border-emerald-500/50"
-                title="Recalcular a confiança de todas as fotos deste animal com a IA local calibrada"
+                className="btn-secondary py-1.5 px-3 min-h-[42px] text-xs font-semibold flex items-center gap-1.5 shrink-0 border-emerald-500/30 hover:border-emerald-500/50"
+                title="Recalcular a qualidade de enquadramento de todas as fotos deste animal"
               >
                 {recalibratingAnimal ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
@@ -454,7 +467,7 @@ export default function AnimalProfilePage() {
                   <Activity className="w-3.5 h-3.5 text-emerald-500" />
                 )}
                 <span>
-                  {recalibratingAnimal ? "Recalculando…" : "Recalcular Confiança"}
+                  {recalibratingAnimal ? "Recalculando…" : "Recalcular Enquadramento"}
                 </span>
               </button>
             )}

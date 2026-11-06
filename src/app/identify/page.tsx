@@ -10,7 +10,7 @@ import { Search, ArrowLeft, Loader2, Camera, Plus, ChevronRight } from "lucide-r
 import { normalizeTag } from "@/lib/animal";
 import { Animal } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
-import ThemeToggle from "@/components/ThemeToggle";
+import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
 
 export default function IdentifyPage() {
@@ -57,28 +57,12 @@ export default function IdentifyPage() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary pb-20 sm:pb-8">
-      <header className="glass-header sticky top-0 z-20">
-        <div className="max-w-xl mx-auto px-3 sm:px-4 h-12 sm:h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-            <button
-              onClick={() => router.push("/dashboard")}
-              aria-label="Voltar"
-              className="p-1.5 sm:p-2 rounded-md text-theme-secondary hover:bg-theme-surface-2 shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-bold text-theme-primary truncate">
-                Identificar por Brinco
-              </h1>
-              <p className="text-[10px] sm:text-xs text-theme-secondary truncate">
-                Busca rápida ou cadastro automático
-              </p>
-            </div>
-          </div>
-          <ThemeToggle className="p-1.5 sm:p-2 shrink-0" />
-        </div>
-      </header>
+      <AppHeader
+        showBack
+        backHref="/dashboard"
+        title="Identificar por Brinco"
+        subtitle="Busca rápida ou cadastro automático"
+      />
 
       <main className="flex-1 p-4 sm:p-6">
         <div className="max-w-xl mx-auto flex flex-col gap-6">

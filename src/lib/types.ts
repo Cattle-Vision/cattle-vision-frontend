@@ -12,12 +12,21 @@ export interface User {
   role: "ADMIN" | "USER" | string;
 }
 
+export interface IcsData {
+  status: "IN_DEVELOPMENT" | "CALCULATED" | "ERROR";
+  score?: number | null;
+  scale?: string;
+  classification?: string;
+  message?: string;
+}
+
 export interface Photo {
   id: string;
   animalId?: string;
   filePath?: string;
   view?: string;
-  score?: number | null;
+  score?: number | null; // Confiança anatômica do enquadramento (0-100)
+  ics?: IcsData | null;
   createdAt?: string;
 }
 
@@ -32,6 +41,7 @@ export interface Animal {
   ownerId: number;
   createdAt?: string;
   updatedAt?: string;
+  ics?: IcsData | null;
   photos: Photo[];
 }
 

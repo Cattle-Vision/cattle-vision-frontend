@@ -30,7 +30,7 @@ import { apiFetch, getApiUrl, getStoredToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/Toast';
 import PhotoLightbox from '@/components/PhotoLightbox';
-import ThemeToggle from '@/components/ThemeToggle';
+import AppHeader from '@/components/AppHeader';
 import MobileNav from '@/components/MobileNav';
 
 interface AdminUserRow {
@@ -306,53 +306,38 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-[100dvh] bg-theme-bg text-theme-primary flex flex-col pb-20 sm:pb-8">
-      <header className="glass-header sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-12 sm:h-14 flex items-center justify-between gap-1.5 sm:gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-            <Link
-              href="/dashboard"
-              className="p-2 rounded-md min-w-[38px] min-h-[38px] flex items-center justify-center text-theme-secondary hover:bg-theme-surface-2 transition active:scale-95 touch-manipulation shrink-0"
-              aria-label="Voltar ao Dashboard"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="text-xs sm:text-sm font-bold text-theme-primary truncate max-w-[125px] xs:max-w-[200px] sm:max-w-none">
-                  Central Administrativa
-                </h1>
-                <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
-                  <ShieldCheck className="w-3 h-3" />
-                  ADMIN
-                </span>
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-theme-muted truncate hidden sm:block">
-                Curadoria global do dataset para IA de ICS e gestão de permissões
-              </p>
-            </div>
+      <AppHeader
+        showBack
+        backHref="/dashboard"
+        title={
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span>Central de Gestão</span>
+            <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
+              <ShieldCheck className="w-3 h-3" />
+              ADMIN
+            </span>
           </div>
-
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <ThemeToggle />
-            <button
-              onClick={handleDownload}
-              disabled={downloading || stats.totalPhotos === 0}
-              className="btn-primary py-1.5 px-3 min-h-[38px] text-xs shrink-0 flex items-center gap-1.5 active:scale-95 touch-manipulation"
-              title="Exportar dataset completo em ZIP"
-              aria-label="Exportar dataset ZIP"
-            >
-              {downloading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Download className="w-3.5 h-3.5" />
-              )}
-              <span className="hidden xs:inline">
-                {downloading ? 'Gerando…' : 'Exportar ZIP'}
-              </span>
-            </button>
-          </div>
-        </div>
-      </header>
+        }
+        subtitle="Gestão global do rebanho, fotos anatômicas e permissões"
+        actions={
+          <button
+            onClick={handleDownload}
+            disabled={downloading || stats.totalPhotos === 0}
+            className="btn-primary py-1.5 px-3 min-h-[38px] text-xs shrink-0 flex items-center gap-1.5 active:scale-95 touch-manipulation font-semibold"
+            title="Exportar fotos e metadados completos em ZIP"
+            aria-label="Exportar dataset ZIP"
+          >
+            {downloading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden xs:inline">
+              {downloading ? 'Gerando…' : 'Exportar ZIP'}
+            </span>
+          </button>
+        }
+      />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -370,7 +355,7 @@ export default function AdminPage() {
 
           <div className="card p-3 sm:p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <ImageIcon className="w-3.5 h-3.5" /> Dataset ICS
+              <ImageIcon className="w-3.5 h-3.5" /> Fotos Avaliadas
             </p>
             <p className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
               {stats.totalPhotos}

@@ -89,7 +89,7 @@ function PhotoCard({
           }`}
         >
           <Activity className="w-3 h-3" />
-          Confiança {Math.round(photo.score as number)}%
+          Enquadramento {Math.round(photo.score as number)}%
         </div>
       )}
 

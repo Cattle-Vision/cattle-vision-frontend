@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CattleVision · Dataset IA de ICS Bovino",
+    name: "CattleVision · Avaliação de ICS Bovino",
     short_name: "CattleVision",
     description:
-      "Plataforma de captura anatômica padronizada para criação do dataset de Inteligência Artificial para ICS Bovino.",
+      "Plataforma inteligente de avaliação de Índice de Condição Corporal (ICS) bovino por visão computacional.",
     start_url: "/dashboard",
     display: "standalone",
     orientation: "portrait",

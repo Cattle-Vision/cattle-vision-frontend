@@ -14,9 +14,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "CattleVision · Dataset para IA de ICS Bovino",
+  title: "CattleVision · Avaliação de Condição Corporal Bovina (ICS)",
   description:
-    "Plataforma colaborativa de coleta de imagens anatômicas da região posterior bovina para treinamento da IA de Índice de Condição Corporal (ICS / ECC).",
+    "Plataforma inteligente para avaliação automatizada do Índice de Condição Corporal (ICS / ECC) de bovinos via visão computacional.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",

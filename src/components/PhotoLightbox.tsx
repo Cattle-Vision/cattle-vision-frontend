@@ -4,7 +4,7 @@
  * PhotoLightbox — Visualizador fullscreen de fotos (`src/components/PhotoLightbox.tsx`).
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2, Sparkles } from 'lucide-react';
 import { Photo, getPhotoUrl } from '@/lib/types';
 import { apiFetch } from '@/lib/api';
 
@@ -110,16 +110,20 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
         className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent"
         style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-white/90 text-xs font-bold bg-white/10 px-2.5 py-1 rounded-md backdrop-blur-sm">
             {currentIndex + 1} / {localPhotos.length}
           </span>
           {hasScore && (
             <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               <Activity className="w-3.5 h-3.5" />
-              Confiança IA: {Math.round(currentPhoto.score as number)}%
+              Enquadramento: {Math.round(currentPhoto.score as number)}%
             </span>
           )}
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            ICS: Em dev.
+          </span>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -127,9 +131,9 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
             type="button"
             onClick={handleRecalibrateCurrent}
             disabled={recalibrating}
-            aria-label="Recalcular Confiança IA"
-            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-md transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50"
-            title="Recalcular Confiança desta foto com a IA local"
+            aria-label="Recalcular Enquadramento"
+            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-md transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[38px]"
+            title="Recalcular enquadramento desta foto com o modelo neural"
           >
             {recalibrating ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />

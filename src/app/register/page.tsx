@@ -54,14 +54,14 @@ export default function RegisterPage() {
           <div className="mt-14">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md mb-4">
               <UserPlus className="w-3.5 h-3.5" />
-              Colaborador de Campo
+              Gestão de Rebanho & ICS
             </span>
             <h1 className="text-3xl font-bold leading-tight tracking-tight">
-              Ajude a construir o dataset para a IA de ICS.
+              Avaliação de Escore Corporal Bovina por IA.
             </h1>
             <p className="mt-4 text-sm text-slate-300 leading-relaxed">
               Fotografe a região posterior de bovinos com mira anatômica padronizada e
-              alimente o banco de dados que treinará o modelo de predição do Índice de Condição Corporal.
+              acesse o cálculo zootécnico inteligente de Índice de Condição Corporal em campo.
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function RegisterPage() {
               Criar nova conta
             </h2>
             <p className="text-xs sm:text-sm text-theme-secondary mb-5">
-              Preencha seus dados para começar a catalogar e colaborar com o dataset.
+              Preencha seus dados para gerenciar seu rebanho e realizar avaliações zootécnicas.
             </p>
 
             {error && (

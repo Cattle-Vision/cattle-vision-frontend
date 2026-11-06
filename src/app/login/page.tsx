@@ -57,24 +57,24 @@ export default function LoginPage() {
           <div className="mt-14">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md mb-4">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Dataset para IA de ICS
+              Avaliação Zootécnica Inteligente
             </span>
             <h1 className="text-3xl font-bold leading-tight tracking-tight">
-              Construindo o dataset para a IA de ICS Bovino.
+              Cálculo e Gestão de ICS Bovino via Visão Computacional.
             </h1>
             <p className="mt-4 text-sm text-slate-300 leading-relaxed">
-              Ajude a alimentar o banco de dados oficial de imagens traseiras do rebanho para
-              viabilizar a primeira IA de predição do Índice de Condição Corporal (ICS / ECC).
+              Monitore a condição corporal do seu rebanho com precisão métrica.
+              Capture fotos com enquadramento anatômico assistido por IA e obtenha diagnósticos zootécnicos padronizados.
             </p>
           </div>
         </div>
 
         <div className="relative z-10 rounded-lg bg-white/5 border border-white/10 p-4 backdrop-blur-xs">
           <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1">
-            Padronização e Qualidade de Dados
+            Enquadramento Anatômico Assistido
           </p>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Fotografe a região anatômica posterior do rebanho com nossa mira guiada para garantir enquadramentos ideais no treinamento da IA.
+            A mira inteligente valida em tempo real a visualização da garupa, ísquios e coluna para assegurar avaliações precisas de escore corporal.
           </p>
         </div>
       </div>

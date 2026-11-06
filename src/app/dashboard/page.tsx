@@ -10,9 +10,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Plus,
-  ShieldCheck,
   Camera,
-  ScanLine,
   Search,
   Activity,
   Scale,
@@ -22,13 +20,14 @@ import {
   Filter,
   Loader2,
   Layers,
+  Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 import { Animal, getPhotoUrl } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import ThemeToggle from "@/components/ThemeToggle";
+import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
-import { LogoutButton } from "@/components/LogoutButton";
 import { useToast } from "@/components/ui/Toast";
 
 type FilterMode = "all" | "with_photos" | "without_photos";
@@ -81,17 +80,26 @@ function AnimalCard({ animal }: { animal: Animal }) {
 
           <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/65 to-transparent pointer-events-none" />
 
+          {/* Brinco */}
           <div className="absolute top-2 left-2 font-mono-tag text-xs font-bold px-2 py-0.5 rounded-md bg-slate-900/85 text-white backdrop-blur-md shadow-xs tracking-wider">
             {animal.tag}
           </div>
 
+          {/* Badge ICS em Destaque */}
+          <div className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/90 text-white backdrop-blur-md shadow-xs">
+            <Sparkles className="w-3 h-3" />
+            ICS: Em dev.
+          </div>
+
+          {/* Qualidade de Enquadramento */}
           {bestScore !== null && (
-            <div className="absolute top-2 right-2 inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-600/90 text-white backdrop-blur-md shadow-xs">
-              <Activity className="w-3 h-3" />
-              Confiança {bestScore}%
+            <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/75 text-emerald-300 backdrop-blur-md shadow-xs">
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              Enquadramento {bestScore}%
             </div>
           )}
 
+          {/* Contagem de Fotos */}
           <div className="absolute bottom-2 right-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-black/65 text-white backdrop-blur-md">
             <Images className="w-3 h-3 text-emerald-400" />
             {photoCount} {photoCount === 1 ? "foto" : "fotos"}
@@ -121,13 +129,22 @@ function AnimalCard({ animal }: { animal: Animal }) {
               {animal.age}m
             </span>
           </div>
+
+          {/* Linha de Diagnóstico ICS */}
+          <div className="mt-3 pt-2 border-t border-theme/60 flex items-center justify-between text-xs">
+            <span className="text-[11px] font-semibold text-theme-muted">Diagnóstico ICS</span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25">
+              <Sparkles className="w-3 h-3 text-amber-500" />
+              Em desenvolvimento
+            </span>
+          </div>
         </div>
       </Link>
 
       <div className="px-4 pb-4 pt-1 flex items-center gap-2">
         <Link
           href={cameraUrl}
-          className="btn-primary flex-1 py-2.5 text-xs"
+          className="btn-primary flex-1 py-2.5 min-h-[44px] text-xs font-bold"
           aria-label={`Fotografar ${label}`}
         >
           <Camera className="w-4 h-4" />
@@ -135,7 +152,7 @@ function AnimalCard({ animal }: { animal: Animal }) {
         </Link>
         <Link
           href={`/animal/${animal.id}`}
-          className="btn-secondary px-3 py-2.5 text-xs"
+          className="btn-secondary px-3.5 py-2.5 min-h-[44px] text-xs font-bold"
           title="Abrir ficha e galeria"
         >
           Ficha
@@ -184,9 +201,9 @@ export default function DashboardPage() {
   const handleRecalibrateHerd = async () => {
     if (recalibratingHerd) return;
     const ok = await confirm({
-      title: "Recalcular Confiança do Rebanho",
+      title: "Recalcular Enquadramento do Rebanho",
       message:
-        "Deseja recalcular a confiança de todas as fotos dos seus animais com o modelo de IA calibrado?",
+        "Deseja recalcular a qualidade de enquadramento anatômico de todas as fotos com a IA neural calibrada?",
       confirmText: "Recalcular Rebanho",
       variant: "primary",
     });
@@ -198,7 +215,7 @@ export default function DashboardPage() {
       toast(data?.message || `${data?.updatedCount ?? 0} fotos recalculadas com sucesso!`, "success");
       await loadAnimals();
     } catch (err: any) {
-      toast(err?.message || "Erro ao recalcular confiança", "error");
+      toast(err?.message || "Erro ao recalcular enquadramento", "error");
     } finally {
       setRecalibratingHerd(false);
     }
@@ -234,55 +251,14 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary">
-      <header className="glass-header sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-12 sm:h-14 flex items-center justify-between gap-1.5 sm:gap-2">
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md bg-emerald-600 flex items-center justify-center text-white shrink-0">
-              <ScanLine className="w-4 h-4 stroke-[2.2]" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-bold text-theme-primary truncate">
-                Cattle<span className="text-emerald-600 dark:text-emerald-400">Vision</span>
-              </h1>
-              <p className="text-[10px] sm:text-[11px] font-medium text-theme-secondary truncate hidden xs:block">
-                {loading
-                  ? "Carregando…"
-                  : `${stats.totalAnimals} animais · ${stats.totalPhotos} fotos para IA de ICS`}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            <ThemeToggle />
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 min-h-[38px] text-xs font-semibold rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition shrink-0"
-                title="Central Administrativa"
-                aria-label="Central Administrativa"
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Admin</span>
-              </Link>
-            )}
-            <Link
-              href="/identify"
-              className="hidden sm:inline-flex btn-secondary py-1.5 px-3 min-h-[38px] text-xs"
-            >
-              <ScanLine className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              Identificar Brinco
-            </Link>
-            <Link
-              href="/animal/new"
-              className="hidden sm:inline-flex btn-primary py-1.5 px-3 min-h-[38px] text-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Novo Animal
-            </Link>
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        title="Meu Rebanho"
+        subtitle={
+          loading
+            ? "Carregando rebanho…"
+            : `${stats.totalAnimals} animais · ${stats.totalPhotos} fotos avaliadas`
+        }
+      />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 pb-20 sm:pb-8">
         {!loading && animals.length > 0 && (
@@ -294,16 +270,16 @@ export default function DashboardPage() {
               <p className="text-2xl font-extrabold text-theme-primary mt-1">
                 {stats.totalAnimals}
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Cadastrados no painel</p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">Cadastrados no lote</p>
             </div>
             <div className="card p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                Dataset ICS
+                Avaliações ICS
               </p>
               <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                 {stats.totalPhotos}
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Fotos de traseira</p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">Fotos anatômicas</p>
             </div>
             <div className="card p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-theme-muted">
@@ -370,8 +346,8 @@ export default function DashboardPage() {
                 type="button"
                 onClick={handleRecalibrateHerd}
                 disabled={recalibratingHerd}
-                className="btn-secondary py-1.5 px-3 text-xs flex items-center justify-center gap-1.5 shrink-0 border-emerald-500/30 hover:border-emerald-500/50"
-                title="Recalcular confiança de todas as fotos do seu rebanho usando a IA calibrada localmente"
+                className="btn-secondary py-1.5 px-3 min-h-[42px] text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 border-emerald-500/30 hover:border-emerald-500/50"
+                title="Recalcular qualidade de enquadramento de todas as fotos do seu rebanho usando a IA calibrada"
               >
                 {recalibratingHerd ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
@@ -379,7 +355,7 @@ export default function DashboardPage() {
                   <Activity className="w-3.5 h-3.5 text-emerald-500" />
                 )}
                 <span>
-                  {recalibratingHerd ? "Recalculando…" : "Recalcular Confiança"}
+                  {recalibratingHerd ? "Recalculando…" : "Recalcular Enquadramento"}
                 </span>
               </button>
             )}

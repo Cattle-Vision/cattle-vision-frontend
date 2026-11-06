@@ -9,7 +9,7 @@ import { ArrowLeft, Loader2, Camera, Check, Sparkles } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { BREEDS, SEX_OPTIONS, isValidTag, normalizeTag } from "@/lib/animal";
 import { apiFetch } from "@/lib/api";
-import ThemeToggle from "@/components/ThemeToggle";
+import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
 
 interface AnimalFormState {
@@ -103,27 +103,12 @@ function NewAnimalForm() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary pb-20 sm:pb-8">
-      <header className="glass-header sticky top-0 z-20">
-        <div className="max-w-2xl mx-auto px-3 sm:px-4 h-12 sm:h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              aria-label="Voltar"
-              className="p-1.5 sm:p-2 rounded-md text-theme-secondary hover:bg-theme-surface-2 shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-bold text-theme-primary truncate">Novo Animal</h1>
-              <p className="text-[10px] sm:text-xs text-theme-secondary truncate">
-                Cadastro no dataset de condição corporal
-              </p>
-            </div>
-          </div>
-          <ThemeToggle className="p-1.5 sm:p-2 shrink-0" />
-        </div>
-      </header>
+      <AppHeader
+        showBack
+        backHref="/dashboard"
+        title="Novo Animal"
+        subtitle="Cadastro e Avaliação ICS"
+      />
 
       <main className="flex-1 p-4 sm:p-6">
         <div className="max-w-2xl mx-auto">
