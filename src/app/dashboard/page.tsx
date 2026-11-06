@@ -22,6 +22,7 @@ import {
   Layers,
   Sparkles,
   CheckCircle2,
+  ShieldCheck,
 } from "lucide-react";
 import { Animal, getPhotoUrl } from "@/lib/types";
 import { apiFetch } from "@/lib/api";
