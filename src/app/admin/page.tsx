@@ -419,13 +419,13 @@ export default function AdminPage() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-theme-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-4 h-4 text-theme-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Filtrar por brinco, nome, raça ou operador…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="field-input pl-9 text-xs sm:text-sm"
+                  className="field-input pl-10 text-xs sm:text-sm"
                 />
               </div>
 
@@ -548,13 +548,13 @@ export default function AdminPage() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 text-theme-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-4 h-4 text-theme-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Buscar usuário por nome, e-mail ou cargo…"
                   value={userQuery}
                   onChange={(e) => setUserQuery(e.target.value)}
-                  className="field-input pl-9 text-xs sm:text-sm"
+                  className="field-input pl-10 text-xs sm:text-sm"
                 />
               </div>
 

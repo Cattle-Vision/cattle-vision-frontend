@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 dialog {
   position: fixed;
@@ -142,6 +143,12 @@ body {
 input, textarea, select {
   font-size: 16px;
   font-family: inherit;
+  color-scheme: inherit;
+}
+
+select option {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 button, a, [role="button"], input[type="button"], input[type="submit"], select {
@@ -241,17 +248,25 @@ a, button, [role="button"] {
   box-shadow: 0 0 0 3px rgb(16 185 129 / 0.16);
 }
 
+.field-input.pl-9,
 .field-input.pl-10,
 .field-input.pl-11,
+.field-input.pl-12,
+input.field-input.pl-9,
 input.field-input.pl-10,
-input.field-input.pl-11 {
+input.field-input.pl-11,
+input.field-input.pl-12 {
   padding-left: 2.75rem !important;
 }
 
+.field-input.pr-9,
 .field-input.pr-10,
 .field-input.pr-11,
+.field-input.pr-12,
+input.field-input.pr-9,
 input.field-input.pr-10,
-input.field-input.pr-11 {
+input.field-input.pr-11,
+input.field-input.pr-12 {
   padding-right: 2.75rem !important;
 }
 
