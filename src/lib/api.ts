@@ -7,10 +7,27 @@
  * - Vercel Serverless / Domínios separados (ex: api.meusite.com)
  * - Docker Compose em redes bridge ou hosts físicos independentes
  *
- * Gerencia tokens de autenticação JWT Bearer no localStorage (`cv_token`).
+ * Gerencia tokens de autenticação JWT Bearer no localStorage (`cattle_vision_jwt_token`).
+ * Possui interceptador Self-Healing que limpa credenciais inválidas em respostas 401.
  */
 
 const TOKEN_KEY = "cattle_vision_jwt_token";
+
+export class ApiError extends Error {
+  status: number;
+  data?: any;
+
+  constructor(message: string, status: number, data?: any) {
+    // Garante que a mensagem contenha o status HTTP para compatibilidade com verificações existentes
+    const fullMessage = message.includes(String(status))
+      ? message
+      : `${message} (${status})`;
+    super(fullMessage);
+    this.status = status;
+    this.data = data;
+    this.name = "ApiError";
+  }
+}
 
 /**
  * Obtém a URL base do backend configurada.
@@ -53,12 +70,19 @@ export function setStoredToken(token: string): void {
 }
 
 /**
- * Remove o token JWT ao realizar logout.
+ * Remove o token JWT e limpa eventuais resquícios de sessão legada.
  */
 export function clearStoredToken(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(TOKEN_KEY);
+    // Limpeza de tokens legados caso existam
+    localStorage.removeItem("cv_token");
+    localStorage.removeItem("token");
+    // Limpa cookies antigos de NextAuth caso ainda persistam no navegador
+    document.cookie = "next-auth.session-token=; path=/; max-age=0";
+    document.cookie = "__Secure-next-auth.session-token=; path=/; max-age=0";
+    document.cookie = "authjs.session-token=; path=/; max-age=0";
   } catch (err) {
     console.error("Erro ao remover token:", err);
   }
@@ -69,7 +93,8 @@ export interface ApiFetchOptions extends Omit<RequestInit, "body"> {
 }
 
 /**
- * Realiza chamadas HTTP com injeção automática de Bearer Token e cabeçalhos CORS.
+ * Realiza chamadas HTTP com injeção automática de Bearer Token, headers CORS e
+ * interceptador automático de erro 401 para auto-recuperação de sessão.
  */
 export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptions = {}): Promise<T> {
   const baseUrl = getApiUrl();
@@ -77,7 +102,7 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
   const url = `${baseUrl}${cleanEndpoint}`;
 
   const headers = new Headers(options.headers || {});
-  
+
   // Anexa o token JWT Bearer se disponível
   const token = getStoredToken();
   if (token && !headers.has("Authorization")) {
@@ -100,13 +125,27 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
 
   if (!response.ok) {
     let errorDetail = "";
+    let errJson: any = null;
     try {
-      const errJson = await response.json();
+      errJson = await response.json();
       errorDetail = errJson.error || errJson.message || JSON.stringify(errJson);
     } catch {
       errorDetail = await response.text();
     }
-    throw new Error(errorDetail || `Falha na requisição (${response.status} ${response.statusText})`);
+
+    // Interceptador de 401: Token inválido, expirado ou segredo JWT alterado no backend
+    if (response.status === 401) {
+      clearStoredToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:unauthorized", { detail: { endpoint } }));
+      }
+    }
+
+    throw new ApiError(
+      errorDetail || `Falha na requisição (${response.status} ${response.statusText})`,
+      response.status,
+      errJson
+    );
   }
 
   const contentType = response.headers.get("content-type") || "";
@@ -138,13 +177,26 @@ export async function apiUpload<T = any>(endpoint: string, formData: FormData): 
 
   if (!response.ok) {
     let errorDetail = "";
+    let errJson: any = null;
     try {
-      const errJson = await response.json();
+      errJson = await response.json();
       errorDetail = errJson.error || errJson.message || JSON.stringify(errJson);
     } catch {
       errorDetail = await response.text();
     }
-    throw new Error(errorDetail || `Falha no upload (${response.status})`);
+
+    if (response.status === 401) {
+      clearStoredToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:unauthorized", { detail: { endpoint } }));
+      }
+    }
+
+    throw new ApiError(
+      errorDetail || `Falha no upload (${response.status})`,
+      response.status,
+      errJson
+    );
   }
 
   return (await response.json()) as T;

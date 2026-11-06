@@ -49,6 +49,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshSession();
   }, [refreshSession]);
 
+  // Interceptor global de sessão revogada / token inválido
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearStoredToken();
+      setUser(null);
+      setLoading(false);
+      if (typeof window !== "undefined") {
+        const path = window.location.pathname;
+        const isAuthRoute = path.startsWith("/login") || path.startsWith("/register") || path === "/";
+        if (!isAuthRoute) {
+          window.location.href = "/login";
+        }
+      }
+    };
+
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, []);
+
   const login = async (email: string, password: string): Promise<User> => {
     setLoading(true);
     try {
