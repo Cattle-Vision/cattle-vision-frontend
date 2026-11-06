@@ -466,36 +466,12 @@ export default function AnimalProfilePage() {
         backHref="/dashboard"
         title={displayName}
         subtitle={`${animal.breed} · ${animal.sex} · ${isOwner ? "Propriedade Direta" : "Guarda Compartilhada"}`}
-        actions={
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-theme-secondary hover:bg-theme-surface-2 border border-theme active:scale-95 transition touch-manipulation"
-              title="Editar dados zootécnicos do animal"
-              aria-label="Editar dados zootécnicos do animal"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            {isOwner && (
-              <button
-                type="button"
-                onClick={handleDeleteAnimal}
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 active:scale-95 transition touch-manipulation"
-                title="Excluir animal (exclusivo do proprietário)"
-                aria-label="Excluir animal"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        }
       />
 
       <main className="flex-1 p-3 sm:p-6 max-w-4xl mx-auto w-full flex flex-col gap-5 pb-20 sm:pb-8">
         {/* Cabeçalho da Ficha com Priorização de Apelido */}
         <div className="card p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
@@ -552,20 +528,44 @@ export default function AnimalProfilePage() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+            {/* Ações da Ficha: Câmera IA, Galeria, Edição e Exclusão organizadas no card */}
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <Link href={cameraUrl} className="btn-primary py-2.5 px-4 text-xs font-bold justify-center min-h-[42px] flex-1 sm:flex-initial">
+                <Camera className="w-4 h-4" />
+                <span>Câmera IA</span>
+              </Link>
+
               <button
                 type="button"
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="btn-secondary py-2.5 px-4 text-xs font-bold justify-center min-h-[44px]"
+                className="btn-secondary py-2.5 px-3.5 text-xs font-bold justify-center min-h-[42px] flex-1 sm:flex-initial"
               >
                 <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                Enviar da Galeria
+                <span>Galeria</span>
               </button>
-              <Link href={cameraUrl} className="btn-primary py-2.5 px-4 text-xs font-bold justify-center min-h-[44px]">
-                <Camera className="w-4 h-4" />
-                Câmera IA ao Vivo
-              </Link>
+
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="btn-secondary py-2.5 px-3 text-xs font-semibold justify-center min-h-[42px] flex items-center gap-1.5"
+                title="Editar dados zootécnicos do animal"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Editar</span>
+              </button>
+
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAnimal}
+                  className="px-3 py-2.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition flex items-center gap-1.5 min-h-[42px]"
+                  title="Excluir animal (exclusivo do proprietário)"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Excluir</span>
+                </button>
+              )}
             </div>
           </div>
 

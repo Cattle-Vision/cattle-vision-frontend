@@ -16,7 +16,6 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/Toast";
 import ThemeToggle from "@/components/ThemeToggle";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
-import { BluetoothStatusButton } from "@/components/BluetoothStatusButton";
 
 export interface AppHeaderProps {
   title?: React.ReactNode;
@@ -65,34 +64,32 @@ export function AppHeader({
 
   return (
     <header className="glass-header sticky top-0 z-30 border-b border-theme bg-theme-surface/90 backdrop-blur-md">
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
         {/* Lado Esquerdo: Identidade / Botão Voltar */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           {showBack ? (
             <button
               type="button"
               onClick={handleBack}
               aria-label="Voltar"
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-theme-primary bg-theme-surface-2 hover:bg-theme-surface border border-theme active:scale-95 transition touch-manipulation shrink-0"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-theme-primary bg-theme-surface-2 hover:bg-theme-surface border border-theme active:scale-95 transition touch-manipulation shrink-0"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           ) : (
             <Link
               href="/dashboard"
-              className="w-10 h-10 rounded-xl bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shrink-0 shadow-xs hover:opacity-95 transition active:scale-95"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shrink-0 shadow-xs hover:opacity-95 transition active:scale-95"
               aria-label="Ir para o painel principal"
             >
-              <Activity className="w-5 h-5 stroke-[2.2]" />
+              <Activity className="w-4.5 h-4.5 sm:w-5 sm:h-5 stroke-[2.2]" />
             </Link>
           )}
 
           <div className="min-w-0">
             {title ? (
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="text-sm sm:text-base font-extrabold text-theme-primary truncate">
-                  {title}
-                </div>
+              <div className="text-sm sm:text-base font-extrabold text-theme-primary truncate">
+                {title}
               </div>
             ) : (
               <Link href="/dashboard" className="block min-w-0">
@@ -110,7 +107,7 @@ export function AppHeader({
           </div>
         </div>
 
-        {/* Centro (Desktop): Links diretos para agilidade (no mobile estão no Bottom Nav) */}
+        {/* Centro (Desktop): Navegação Rápida */}
         <nav className="hidden md:flex items-center gap-1">
           <Link
             href="/dashboard"
@@ -133,7 +130,7 @@ export function AppHeader({
             }`}
           >
             <ScanLine className="w-4 h-4" />
-            <span>Identificar</span>
+            <span>Identificar (RFID)</span>
           </Link>
 
           <Link
@@ -163,14 +160,10 @@ export function AppHeader({
           )}
         </nav>
 
-        {/* Lado Direito: Ações da Página, RFID Bluetooth, PWA, Tema e Botão Sair Sempre Visível */}
+        {/* Lado Direito: Apenas Controles Essenciais (PWA, Tema e Sair) */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {actions}
 
-          {/* Botão de Leitor RFID ESP32 via Bluetooth */}
-          <BluetoothStatusButton />
-
-          {/* Botão de Instalação PWA: ícone no mobile, botão com texto no desktop */}
           <div className="hidden sm:block">
             <PwaInstallPrompt variant="button" />
           </div>
@@ -180,15 +173,14 @@ export function AppHeader({
 
           <ThemeToggle />
 
-          {/* Botão Sair — Garantido dentro da tela, nunca ultrapassa o limite da viewport */}
           <button
             type="button"
             onClick={handleLogout}
             title={`Sair da conta (${user?.name || "Operador"})`}
             aria-label="Sair da conta"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 active:scale-95 transition touch-manipulation shrink-0"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 active:scale-95 transition touch-manipulation shrink-0"
           >
-            <LogOut className="w-4.5 h-4.5" />
+            <LogOut className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
           </button>
         </div>
       </div>
