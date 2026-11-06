@@ -9,7 +9,7 @@ import { Photo, getPhotoUrl } from '@/lib/types';
 
 interface PhotoGridProps {
   photos: Photo[];
-  onDelete: (photoId: string) => void;
+  onDelete?: (photoId: string) => void;
   onSelect: (photo: Photo, index: number) => void;
 }
 
@@ -20,7 +20,7 @@ function PhotoCard({
   index,
 }: {
   photo: Photo;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   onSelect: (photo: Photo, index: number) => void;
   index: number;
 }) {
@@ -99,17 +99,19 @@ function PhotoCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(photo.id);
-        }}
-        aria-label="Apagar foto"
-        className="absolute top-2.5 right-2.5 z-10 bg-black/60 hover:bg-red-600 active:bg-red-700 text-white p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 shadow-lg backdrop-blur-sm cursor-pointer active:scale-90"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(photo.id);
+          }}
+          aria-label="Apagar foto"
+          className="absolute top-2.5 right-2.5 z-10 bg-black/60 hover:bg-red-600 active:bg-red-700 text-white p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 shadow-lg backdrop-blur-sm cursor-pointer active:scale-90"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
 
       <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-white pointer-events-none">
         <span className="text-xs font-bold tracking-tight">
