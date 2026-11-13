@@ -7,12 +7,14 @@
  * 3. Inferência IA Híbrida (`evaluatePhotoScoreBeforeUpload`) integrada ao backend remoto.
  */
 import { getApiUrl } from "./api";
+import { analyzeBlobLocally } from "./local-onnx";
 
 export interface VisionScoreResult {
   score: number;
   confidence?: number;
   lowQuality: boolean;
   error?: boolean;
+  localRuntime?: boolean;
   rejectedReason?: "human-detected" | "non-bovine-detected";
   source: "yolo-onnx" | "vision-analysis" | "client-optical";
   feedback: string;
@@ -233,13 +235,45 @@ export function computeInstantVideoScore(
 }
 
 /**
- * Avalia a Confiança da IA de um Blob de imagem ANTES do upload definitivo enviando ao backend.
+ * Avalia a Confiança de Enquadramento de um Blob de imagem ANTES do envio:
+ * 1. Prioridade absoluta (Edge AI Local): executa `identifier.onnx`, `version-RFB-320.onnx` e
+ *    `yolo11n.onnx` diretamente no dispositivo do usuário (100% funcional offline, zero latência de rede).
+ * 2. Fallback remoto: apenas caso o navegador não suporte WebAssembly/ONNX e haja internet.
  */
 export async function evaluatePhotoScoreBeforeUpload(
   blob: Blob,
   signal?: AbortSignal,
   mode: "live" | "full" = "full"
 ): Promise<VisionScoreResult> {
+  if (signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+
+  try {
+    const localResult = await analyzeBlobLocally(blob, mode);
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+    if (localResult) {
+      return { ...localResult, localRuntime: true };
+    }
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") {
+      throw err;
+    }
+  }
+
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return {
+      score: 0,
+      lowQuality: true,
+      error: true,
+      localRuntime: true,
+      source: "client-optical",
+      feedback: "IA local indisponível neste navegador no modo offline.",
+    };
+  }
+
   try {
     const fd = new FormData();
     fd.append("file", blob, "frame.jpg");
@@ -255,7 +289,7 @@ export async function evaluatePhotoScoreBeforeUpload(
     if (res.ok) {
       const data = (await res.json()) as VisionScoreResult;
       if (typeof data.score === "number") {
-        return data;
+        return { ...data, localRuntime: false };
       }
     }
   } catch (err) {
@@ -269,6 +303,6 @@ export async function evaluatePhotoScoreBeforeUpload(
     lowQuality: true,
     error: true,
     source: "client-optical",
-    feedback: "Não foi possível consultar a IA agora — o servidor validará no upload.",
+    feedback: "Não foi possível analisar a imagem agora — tente novamente.",
   };
 }

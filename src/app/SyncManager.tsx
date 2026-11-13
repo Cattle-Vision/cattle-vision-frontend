@@ -36,10 +36,20 @@ export function SyncManager() {
         let bodyData: FormData | string;
         if (item.isFormData) {
           const fd = new FormData();
-          const formBody = item.body as { animalId: string; file: ArrayBuffer; fileName: string };
+          const formBody = item.body as {
+            animalId: string;
+            file: ArrayBuffer;
+            fileName: string;
+            preScore?: number;
+            aiSource?: string;
+          };
           fd.append('animalId', formBody.animalId);
           fd.append('view', 'REAR');
           fd.append('file', new Blob([formBody.file], { type: 'image/jpeg' }), formBody.fileName);
+          if (typeof formBody.preScore === 'number' && Number.isFinite(formBody.preScore)) {
+            fd.append('preScore', String(formBody.preScore));
+            fd.append('aiSource', formBody.aiSource || 'yolo-onnx-client');
+          }
           bodyData = fd;
         } else {
           bodyData = JSON.stringify(item.body);

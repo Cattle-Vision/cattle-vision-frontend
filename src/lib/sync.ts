@@ -3,11 +3,19 @@ import { openDB } from "idb";
 const DB_NAME = "cattle-vision-db";
 const DB_VERSION = 2;
 
+export interface OfflinePhotoUploadBody {
+  file: ArrayBuffer;
+  fileName: string;
+  animalId: string;
+  preScore?: number;
+  aiSource?: string;
+}
+
 export interface SyncQueuePayload {
   id?: number;
   url: string;
   method: string;
-  body: Record<string, unknown> | { file: ArrayBuffer; fileName: string; animalId: string };
+  body: Record<string, unknown> | OfflinePhotoUploadBody;
   isFormData: boolean;
   label?: string;
   createdAt: number;
@@ -30,7 +38,7 @@ export async function initDB() {
 export async function enqueueSync(
   url: string,
   method: string,
-  body: Record<string, unknown> | { file: ArrayBuffer; fileName: string; animalId: string },
+  body: Record<string, unknown> | OfflinePhotoUploadBody,
   isFormData = false,
   label?: string
 ) {

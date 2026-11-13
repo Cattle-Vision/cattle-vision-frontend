@@ -11,10 +11,7 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import {
   Camera,
-  Scale,
-  Calendar,
   Tag,
-  Dna,
   Upload,
   Pencil,
   Trash2,
@@ -30,7 +27,7 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
-  Ruler,
+  ExternalLink,
   MapPin,
   Bluetooth,
   BluetoothConnected,
@@ -40,6 +37,8 @@ import PhotoLightbox from "@/components/PhotoLightbox";
 import AppHeader from "@/components/AppHeader";
 import AnimalIcsPanel from "@/components/animal/AnimalIcsPanel";
 import AnimalHealthTabs, { AnimalTabId } from "@/components/animal/AnimalHealthTabs";
+import FarmLocationFields from "@/components/FarmLocationFields";
+import { buildGoogleMapsUrl, formatCoordinates } from "@/lib/location";
 import { useToast } from "@/components/ui/Toast";
 import { Animal, Photo } from "@/lib/types";
 import { BREEDS, SEX_OPTIONS, normalizeTag } from "@/lib/animal";
@@ -52,6 +51,7 @@ import {
   apiUpload,
   getApiCacheSnapshot,
   invalidateApiCache,
+  recalibratePhotosSequentially,
   addCollaborator,
   removeCollaborator,
   transferOwnership,
@@ -88,16 +88,11 @@ function PageSkeleton() {
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg p-3 bg-theme-surface-2 border border-theme">
-      <div className="w-8 h-8 rounded-lg bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">{label}</p>
-        <p className="text-sm font-bold text-theme-primary truncate tabular-nums">{value}</p>
-      </div>
+    <div className="rounded-lg p-3 bg-theme-surface-2 border border-theme min-w-0">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">{label}</p>
+      <p className="text-sm font-bold text-theme-primary truncate tabular-nums mt-0.5">{value}</p>
     </div>
   );
 }
@@ -116,6 +111,10 @@ export default function AnimalProfilePage() {
   const [loading, setLoading] = useState<boolean>(() => !cachedAnimal);
   const [uploading, setUploading] = useState(false);
   const [recalibratingAnimal, setRecalibratingAnimal] = useState(false);
+  const [recalibratingProgress, setRecalibratingProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const [pendingPhoto, setPendingPhoto] = useState<PendingGalleryPhoto | null>(null);
@@ -149,6 +148,9 @@ export default function AnimalProfilePage() {
       age: cachedAnimal ? String(cachedAnimal.age) : "",
       length: cachedAnimal?.length != null ? String(cachedAnimal.length) : "",
       location: cachedAnimal?.location ?? "",
+      locationAddress: cachedAnimal?.locationAddress ?? "",
+      latitude: cachedAnimal?.latitude != null ? String(cachedAnimal.latitude) : "",
+      longitude: cachedAnimal?.longitude != null ? String(cachedAnimal.longitude) : "",
       observations: cachedAnimal?.observations ?? "",
     };
   });
@@ -212,6 +214,9 @@ export default function AnimalProfilePage() {
             age: String(data.age),
             length: data.length != null ? String(data.length) : "",
             location: data.location || "",
+            locationAddress: data.locationAddress || "",
+            latitude: data.latitude != null ? String(data.latitude) : "",
+            longitude: data.longitude != null ? String(data.longitude) : "",
             observations: data.observations || "",
           });
         }
@@ -280,6 +285,12 @@ export default function AnimalProfilePage() {
       fd.append("view", "REAR");
       if (pendingPhoto.scoreResult) {
         fd.append("preScore", String(pendingPhoto.scoreResult.score));
+        fd.append(
+          "aiSource",
+          pendingPhoto.scoreResult.localRuntime
+            ? "yolo-onnx-client"
+            : pendingPhoto.scoreResult.source
+        );
       }
 
       const data = await apiUpload<{ photo: Photo }>("/api/photos/upload", fd);
@@ -353,6 +364,15 @@ export default function AnimalProfilePage() {
           age: Number(editForm.age),
           length: editForm.length.trim() !== "" ? Number(editForm.length) : null,
           location: editForm.location.trim() || null,
+          locationAddress: editForm.locationAddress.trim() || null,
+          latitude:
+            editForm.latitude.trim() !== ""
+              ? Number(editForm.latitude.replace(",", "."))
+              : null,
+          longitude:
+            editForm.longitude.trim() !== ""
+              ? Number(editForm.longitude.replace(",", "."))
+              : null,
           observations: editForm.observations.trim() || null,
         },
       });
@@ -392,26 +412,32 @@ export default function AnimalProfilePage() {
 
   const handleRecalibrateAnimal = async () => {
     if (recalibratingAnimal || !animal) return;
-    setRecalibratingAnimal(true);
-    try {
-      const data = await apiFetch<any>(`/api/animals/${animal.id}/recalibrate`, { method: "POST" });
-      toast(data?.message || `${data?.updatedCount ?? 0} foto(s) recalculada(s).`, "success");
+    const photoIds = (animal.photos ?? []).map((p) => p.id);
+    if (photoIds.length === 0) return;
 
-      if (Array.isArray(data?.results)) {
-        const scoreMap = new Map(
-          data.results.map((r: { id: string; newScore: number }) => [r.id, r.newScore])
-        );
-        setAnimal((prev) =>
-          prev
-            ? {
-                ...prev,
-                photos: (prev.photos ?? []).map((p) =>
-                  scoreMap.has(p.id) ? { ...p, score: scoreMap.get(p.id) as number } : p
-                ),
-              }
-            : prev
-        );
-      }
+    setRecalibratingAnimal(true);
+    setRecalibratingProgress({ current: 0, total: photoIds.length });
+    try {
+      const summary = await recalibratePhotosSequentially(photoIds, ({ current, total, photoId, newScore }) => {
+        setRecalibratingProgress({ current, total });
+        if (newScore !== null) {
+          setAnimal((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  photos: (prev.photos ?? []).map((p) =>
+                    p.id === photoId ? { ...p, score: newScore } : p
+                  ),
+                }
+              : prev
+          );
+        }
+      });
+
+      toast(
+        `${summary.updatedCount} de ${summary.totalCount} foto(s) recalculadas sequencialmente.`,
+        summary.failedCount > 0 ? "info" : "success"
+      );
       invalidateApiCache("/api/animals");
       invalidateApiCache("/api/admin/animals");
       await loadAnimal(true);
@@ -419,6 +445,7 @@ export default function AnimalProfilePage() {
       toast(err?.message || "Erro ao recalcular enquadramento.", "error");
     } finally {
       setRecalibratingAnimal(false);
+      setRecalibratingProgress(null);
     }
   };
 
@@ -628,26 +655,60 @@ export default function AnimalProfilePage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2.5 mb-4">
-                <Stat icon={<Tag className="w-4 h-4" />} label="Raça" value={animal.breed} />
-                <Stat icon={<Dna className="w-4 h-4" />} label="Sexo" value={animal.sex} />
-                <Stat icon={<Scale className="w-4 h-4" />} label="Peso" value={`${animal.weight} kg`} />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-3">
+                <Stat label="Raça" value={animal.breed} />
+                <Stat label="Sexo" value={animal.sex} />
+                <Stat label="Peso" value={`${animal.weight} kg`} />
+                <Stat label="Idade" value={`${animal.age} meses`} />
                 <Stat
-                  icon={<Calendar className="w-4 h-4" />}
-                  label="Idade"
-                  value={`${animal.age} meses`}
-                />
-                <Stat
-                  icon={<Ruler className="w-4 h-4" />}
                   label="Comprimento"
-                  value={animal.length ? `${animal.length} cm` : "Não informado"}
+                  value={animal.length ? `${animal.length} cm` : "—"}
                 />
-                <Stat
-                  icon={<MapPin className="w-4 h-4" />}
-                  label="Localização"
-                  value={animal.location || "Não informada"}
-                />
+                <Stat label="Capturas" value={`${photoCount}`} />
               </div>
+
+              {(() => {
+                const coordText = formatCoordinates(animal.latitude, animal.longitude);
+                const mapsUrl = buildGoogleMapsUrl(
+                  animal.latitude,
+                  animal.longitude,
+                  animal.locationAddress || animal.location
+                );
+                return (
+                  <div className="rounded-lg p-3 bg-theme-surface-2 border border-theme mb-4 flex items-start justify-between gap-2.5">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted inline-flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        Fazenda / Localização
+                      </p>
+                      <p className="text-sm font-bold text-theme-primary truncate mt-0.5">
+                        {animal.location || "Não informada"}
+                      </p>
+                      {animal.locationAddress && (
+                        <p className="text-[11px] text-theme-secondary truncate mt-0.5">
+                          {animal.locationAddress}
+                        </p>
+                      )}
+                      {coordText && (
+                        <p className="text-[11px] font-mono text-theme-muted mt-0.5 tabular-nums">
+                          GPS: {coordText}
+                        </p>
+                      )}
+                    </div>
+                    {mapsUrl && (
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 shrink-0 pt-0.5"
+                      >
+                        <span>Maps</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Ações principais */}
               <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-theme">
@@ -847,8 +908,6 @@ export default function AnimalProfilePage() {
                   <AnimalIcsPanel
                     animal={animal}
                     photos={photos}
-                    recalibrating={recalibratingAnimal}
-                    onRecalibrate={handleRecalibrateAnimal}
                     onSelectPhoto={(idx) => setLightboxIndex(idx)}
                   />
 
@@ -868,7 +927,7 @@ export default function AnimalProfilePage() {
                           type="button"
                           onClick={handleRecalibrateAnimal}
                           disabled={recalibratingAnimal}
-                          className="btn-secondary py-1.5 px-3 min-h-[38px] text-xs font-semibold shrink-0"
+                          className="btn-secondary py-1.5 px-3 min-h-[38px] text-xs font-semibold shrink-0 tabular-nums"
                         >
                           {recalibratingAnimal ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
@@ -876,7 +935,11 @@ export default function AnimalProfilePage() {
                             <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           )}
                           <span>
-                            {recalibratingAnimal ? "Recalculando…" : "Recalcular enquadramento"}
+                            {recalibratingAnimal
+                              ? recalibratingProgress
+                                ? `Recalculando ${recalibratingProgress.current}/${recalibratingProgress.total}…`
+                                : "Recalculando…"
+                              : "Recalcular enquadramento"}
                           </span>
                         </button>
                       )}
@@ -1190,16 +1253,16 @@ export default function AnimalProfilePage() {
                 </div>
               </div>
 
-              <div>
-                <label className="field-label">Localização atual</label>
-                <input
-                  type="text"
-                  value={editForm.location}
-                  placeholder="Ex: Pasto Sul, Piquete 04"
-                  onChange={(e) => setEditForm((p) => ({ ...p, location: e.target.value }))}
-                  className="field-input text-sm"
-                />
-              </div>
+              <FarmLocationFields
+                value={{
+                  location: editForm.location,
+                  locationAddress: editForm.locationAddress,
+                  latitude: editForm.latitude,
+                  longitude: editForm.longitude,
+                }}
+                onChange={(loc) => setEditForm((p) => ({ ...p, ...loc }))}
+                compact
+              />
 
               <div>
                 <label className="field-label">Observação resumida da ficha</label>

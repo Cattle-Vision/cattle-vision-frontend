@@ -26,6 +26,7 @@ import {
   Images,
   Beef,
   Palette,
+  Cpu,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -38,6 +39,12 @@ import {
 import { Animal, User } from "@/lib/types";
 import { getSyncQueue } from "@/lib/sync";
 import { bluetoothRfid, BluetoothStatus } from "@/lib/bluetooth-rfid";
+import {
+  cacheLocalModelsForOffline,
+  getLocalVisionStatus,
+  LocalAiModelStatus,
+  warmUpLocalVisionModels,
+} from "@/lib/local-onnx";
 import { useToast } from "@/components/ui/Toast";
 import { AppHeader } from "@/components/AppHeader";
 import { MobileNav } from "@/components/MobileNav";
@@ -67,6 +74,8 @@ export default function ProfilePage() {
   const [bleStatus, setBleStatus] = useState<BluetoothStatus>("disconnected");
   const [bleDeviceName, setBleDeviceName] = useState("");
   const [bleSupported, setBleSupported] = useState(true);
+  const [localAiStatus, setLocalAiStatus] = useState<LocalAiModelStatus>("idle");
+  const [aiCachedOffline, setAiCachedOffline] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -119,6 +128,30 @@ export default function ProfilePage() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    setLocalAiStatus(getLocalVisionStatus());
+    if (typeof caches !== "undefined") {
+      caches
+        .match("/models/identifier.onnx")
+        .then((hit) => setAiCachedOffline(Boolean(hit)))
+        .catch(() => {});
+    }
+  }, []);
+
+  const handlePrepareOfflineAi = async () => {
+    setLocalAiStatus("loading");
+    const cached = await cacheLocalModelsForOffline();
+    const warmed = await warmUpLocalVisionModels();
+    setAiCachedOffline(cached || warmed);
+    if (warmed) {
+      setLocalAiStatus("ready");
+      toast("Modelos ONNX prontos para uso local e offline.", "success");
+    } else {
+      setLocalAiStatus("unavailable");
+      toast("Não foi possível carregar o motor local neste navegador.", "error");
+    }
+  };
 
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -498,6 +531,51 @@ export default function ProfilePage() {
                   {bleStatus === "connected" ? "Desconectar" : "Parear Bastão"}
                 </button>
               )}
+            </div>
+
+            {/* Edge AI Offline (ONNX WebAssembly) */}
+            <div className="py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${
+                    localAiStatus === "ready" || aiCachedOffline
+                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                      : "bg-theme-surface-2 border-theme text-theme-secondary"
+                  }`}
+                >
+                  <Cpu className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm font-semibold text-theme-primary">
+                    IA Local de Enquadramento (Offline)
+                  </p>
+                  <p className="text-[11px] text-theme-secondary">
+                    {localAiStatus === "ready"
+                      ? "Modelos ONNX carregados em memória · Funciona sem internet."
+                      : aiCachedOffline
+                      ? "Pesos ONNX salvos no cache offline do aparelho."
+                      : "Roda no aparelho sem internet; apenas a futura IA de ICS fica no servidor."}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePrepareOfflineAi}
+                disabled={localAiStatus === "loading"}
+                className={
+                  localAiStatus === "ready"
+                    ? "btn-secondary py-2 px-3 min-h-[36px] text-xs"
+                    : "btn-primary py-2 px-3 min-h-[36px] text-xs"
+                }
+              >
+                {localAiStatus === "loading" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Cpu className="w-3.5 h-3.5" />
+                )}
+                {localAiStatus === "ready" ? "IA Pronta" : "Preparar IA Offline"}
+              </button>
             </div>
 
             {/* Painel Admin */}

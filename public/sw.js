@@ -4,16 +4,24 @@
  * - Assets imutáveis `/_next/static/*`: Cache-First para carregamento instantâneo.
  * - Páginas e navegação: Network-First com fallback em cache para resiliência no campo.
  */
-const CACHE_NAME = "cattle-vision-pwa-v4";
+const CACHE_NAME = "cattle-vision-pwa-v5";
 const PRECACHE_URLS = [
   "/",
   "/login",
   "/dashboard",
+  "/camera",
   "/icon.svg",
   "/icon-192.png",
   "/icon-512.png",
   "/apple-touch-icon.png",
   "/manifest.webmanifest",
+];
+const EDGE_AI_ASSETS = [
+  "/models/identifier.onnx",
+  "/models/version-RFB-320.onnx",
+  "/models/yolo11n.onnx",
+  "/ort/ort-wasm-simd-threaded.mjs",
+  "/ort/ort-wasm-simd-threaded.wasm",
 ];
 
 self.addEventListener("install", (event) => {
@@ -44,8 +52,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
-  // Bundles versionados do Next.js são imutáveis por hash: Cache-First reduz drasticamente o TTI
-  if (url.pathname.startsWith("/_next/static/")) {
+  // Bundles imutáveis e modelos locais de IA/WASM: Cache-First garante operação 100% offline no curral
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/models/") ||
+    url.pathname.startsWith("/ort/")
+  ) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>
@@ -73,4 +85,14 @@ self.addEventListener("fetch", (event) => {
       })
       .catch(() => caches.match(request))
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "WARM_AI_CACHE") {
+    event.waitUntil(
+      caches
+        .open(CACHE_NAME)
+        .then((cache) => cache.addAll(EDGE_AI_ASSETS).catch(() => {}))
+    );
+  }
 });

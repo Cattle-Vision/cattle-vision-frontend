@@ -14,6 +14,19 @@ const nextConfig: NextConfig = {
       { protocol: "http", hostname: "**" },
     ],
   },
+  // Cache imutável para modelos ONNX locais e runtime WebAssembly offline
+  async headers() {
+    return [
+      {
+        source: "/models/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/ort/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
+  },
   // Proxy de desenvolvimento/produção para o backend quando requisitado via mesmo domínio
   async rewrites() {
     return [
