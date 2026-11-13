@@ -1,12 +1,28 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { SyncManager } from "./SyncManager";
 import "./globals.css";
 
+// Self-hosted via next/font para eliminar requisições CSS bloqueantes em redes rurais
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#059669" },
-    { media: "(prefers-color-scheme: dark)", color: "#090D16" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0F13" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -14,9 +30,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "CattleVision · Avaliação de Condição Corporal Bovina (ICS)",
+  title: "CattleVision · Registro e Avaliação Corporal Bovina",
   description:
-    "Plataforma inteligente para avaliação automatizada do Índice de Condição Corporal (ICS / ECC) de bovinos via visão computacional.",
+    "Sistema de campo para identificação RFID, captura fotográfica anatômica e acompanhamento de escore corporal (ICS) do rebanho.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.svg",
@@ -45,15 +61,13 @@ const themeInitScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      suppressHydrationWarning
+      className={`${plusJakarta.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body className="min-h-[100dvh] antialiased">
         <Providers>

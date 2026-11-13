@@ -2,7 +2,15 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { User } from "./types";
-import { apiFetch, getStoredToken, setStoredToken, clearStoredToken } from "./api";
+import {
+  apiFetch,
+  getStoredToken,
+  setStoredToken,
+  clearStoredToken,
+  getCachedUser,
+  setCachedUser,
+  invalidateApiCache,
+} from "./api";
 
 interface AuthContextType {
   user: User | null;
@@ -24,15 +32,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshSession = useCallback(async () => {
     const token = getStoredToken();
     if (!token) {
+      setCachedUser(null);
       setUser(null);
       setLoading(false);
       return;
+    }
+
+    // Hidrata imediatamente o perfil em cache para não bloquear o carregamento inicial
+    // das páginas protegidas esperando o roundtrip de /api/auth/me.
+    const cached = getCachedUser();
+    if (cached) {
+      setUser(cached);
+      setLoading(false);
     }
 
     try {
       const data = await apiFetch<{ user: User }>("/api/auth/me");
       if (data?.user) {
         setUser(data.user);
+        setCachedUser(data.user);
       } else {
         clearStoredToken();
         setUser(null);
@@ -81,6 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setStoredToken(data.token);
+      setCachedUser(data.user);
+      invalidateApiCache();
       setUser(data.user);
       return data.user;
     } finally {
@@ -101,6 +121,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setStoredToken(data.token);
+      setCachedUser(data.user);
+      invalidateApiCache();
       setUser(data.user);
       return data.user;
     } finally {

@@ -77,6 +77,7 @@ export interface Animal {
   createdAt?: string;
   updatedAt?: string;
   ics?: IcsData | null;
+  photoCount?: number;
   photos: Photo[];
 }
 
@@ -88,12 +89,15 @@ export interface AnimalWithOwner extends Animal {
 }
 
 /**
- * Retorna a URL absoluta ou relativa da rota proxy para renderização segura da foto no backend.
+ * Retorna a URL da rota proxy para renderização segura da foto no backend.
+ * Quando `width` é informado (ex.: 480 para miniaturas de grade), o backend entrega
+ * uma versão redimensionada e negociada em WebP/JPEG para economizar banda móvel.
  */
-export function getPhotoUrl(photoOrId: Pick<Photo, "id"> | string): string {
+export function getPhotoUrl(photoOrId: Pick<Photo, "id"> | string, width?: number): string {
   const id = typeof photoOrId === "string" ? photoOrId : photoOrId.id;
   const base = getApiUrl();
-  return `${base}/api/photos/${encodeURIComponent(id)}`;
+  const query = width ? `?w=${Math.round(width)}` : "";
+  return `${base}/api/photos/${encodeURIComponent(id)}${query}`;
 }
 
 /**

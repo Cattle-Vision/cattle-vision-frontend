@@ -11,9 +11,51 @@
  * Possui interceptador Self-Healing que limpa credenciais inválidas em respostas 401.
  */
 
-import { RfidScanResult, Animal } from "./types";
+import { RfidScanResult, Animal, User } from "./types";
 
 const TOKEN_KEY = "cattle_vision_jwt_token";
+const USER_CACHE_KEY = "cattle_vision_user_cache";
+
+/** Cache em memória estilo stale-while-revalidate para navegação instantânea entre rotas */
+const responseCache = new Map<string, { data: unknown; timestamp: number }>();
+const inflightRequests = new Map<string, Promise<unknown>>();
+
+export function invalidateApiCache(prefix?: string): void {
+  if (!prefix) {
+    responseCache.clear();
+    return;
+  }
+  for (const key of responseCache.keys()) {
+    if (key.startsWith(prefix)) {
+      responseCache.delete(key);
+    }
+  }
+}
+
+export function getCachedUser(): User | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as User;
+    return parsed && parsed.id && parsed.email ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedUser(user: User | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (user) {
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(USER_CACHE_KEY);
+    }
+  } catch {
+    // Ignora quota errors de storage
+  }
+}
 
 export class ApiError extends Error {
   status: number;
@@ -78,6 +120,8 @@ export function clearStoredToken(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_CACHE_KEY);
+    responseCache.clear();
     // Limpeza de tokens legados caso existam
     localStorage.removeItem("cv_token");
     localStorage.removeItem("token");
@@ -150,11 +194,64 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
     );
   }
 
+  const method = (options.method || "GET").toUpperCase();
+  const isMutation = method !== "GET" && method !== "HEAD";
+
   const contentType = response.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) {
-    return (await response.json()) as T;
+  const result = contentType.includes("application/json")
+    ? ((await response.json()) as T)
+    : ((await response.text()) as unknown as T);
+
+  if (isMutation) {
+    // Mutações invalidam caches relacionados para evitar dados defasados ao voltar ao painel
+    if (cleanEndpoint.startsWith("/api/animals") || cleanEndpoint.startsWith("/api/photos")) {
+      invalidateApiCache("/api/animals");
+      invalidateApiCache("/api/admin");
+    } else if (cleanEndpoint.startsWith("/api/admin")) {
+      invalidateApiCache("/api/admin");
+      invalidateApiCache("/api/animals");
+    }
   }
-  return (await response.text()) as unknown as T;
+
+  return result;
+}
+
+/**
+ * Leitura GET com cache em memória (SWR) e deduplicação de requisições concorrentes.
+ * Entrega imediatamente o cache local se disponível e revalida em segundo plano quando expirado.
+ */
+export function getApiCacheSnapshot<T = any>(endpoint: string): T | null {
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const entry = responseCache.get(cleanEndpoint);
+  return entry ? (entry.data as T) : null;
+}
+
+export async function apiFetchCached<T = any>(
+  endpoint: string,
+  ttlMs = 15_000
+): Promise<T> {
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const cached = responseCache.get(cleanEndpoint);
+  if (cached && Date.now() - cached.timestamp < ttlMs) {
+    return cached.data as T;
+  }
+
+  const inflight = inflightRequests.get(cleanEndpoint);
+  if (inflight) {
+    return inflight as Promise<T>;
+  }
+
+  const promise = apiFetch<T>(cleanEndpoint)
+    .then((data) => {
+      responseCache.set(cleanEndpoint, { data, timestamp: Date.now() });
+      return data;
+    })
+    .finally(() => {
+      inflightRequests.delete(cleanEndpoint);
+    });
+
+  inflightRequests.set(cleanEndpoint, promise);
+  return promise;
 }
 
 /**
@@ -253,5 +350,7 @@ export async function apiUpload<T = any>(endpoint: string, formData: FormData): 
     );
   }
 
+  invalidateApiCache("/api/animals");
+  invalidateApiCache("/api/admin");
   return (await response.json()) as T;
 }

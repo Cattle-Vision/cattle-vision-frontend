@@ -1,10 +1,10 @@
 /**
- * Service Worker do CattleCapture PWA (`public/sw.js`).
+ * Service Worker do CattleVision PWA (`public/sw.js`).
  *
- * Estratégia Network-First com fallback para cache, permitindo que o app seja
- * instalado na tela inicial do celular e opere com estabilidade em conexões instáveis.
+ * - Assets imutáveis `/_next/static/*`: Cache-First para carregamento instantâneo.
+ * - Páginas e navegação: Network-First com fallback em cache para resiliência no campo.
  */
-const CACHE_NAME = "cattle-capture-pwa-v2";
+const CACHE_NAME = "cattle-vision-pwa-v3";
 const PRECACHE_URLS = ["/", "/login", "/dashboard", "/icon.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -33,7 +33,25 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.pathname.startsWith("/api/")) return;
+  if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+
+  // Bundles versionados do Next.js são imutáveis por hash: Cache-First reduz drasticamente o TTI
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            if (response && response.status === 200) {
+              const copy = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
+            }
+            return response;
+          })
+      )
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(request)
