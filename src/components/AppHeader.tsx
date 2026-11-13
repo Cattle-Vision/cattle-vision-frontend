@@ -63,8 +63,8 @@ export function AppHeader({
   };
 
   return (
-    <header className="glass-header sticky top-0 z-30 border-b border-theme bg-theme-surface/90 backdrop-blur-md">
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
+    <header className="glass-header sticky top-0 z-30 border-b border-theme bg-theme-surface/92 backdrop-blur-md">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-15 flex items-center justify-between gap-3">
         {/* Lado Esquerdo: Identidade / Botão Voltar */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           {showBack ? (
@@ -72,28 +72,28 @@ export function AppHeader({
               type="button"
               onClick={handleBack}
               aria-label="Voltar"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-theme-primary bg-theme-surface-2 hover:bg-theme-surface border border-theme active:scale-95 transition touch-manipulation shrink-0"
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-theme-primary bg-theme-surface-2 hover:bg-theme-surface border border-theme active:scale-95 transition touch-manipulation shrink-0"
             >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
           ) : (
             <Link
               href="/dashboard"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shrink-0 shadow-xs hover:opacity-95 transition active:scale-95"
+              className="w-9 h-9 rounded-lg bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shrink-0 hover:bg-emerald-700 dark:hover:bg-emerald-400 transition active:scale-95"
               aria-label="Ir para o painel principal"
             >
-              <Activity className="w-4.5 h-4.5 sm:w-5 sm:h-5 stroke-[2.2]" />
+              <Activity className="w-4.5 h-4.5 stroke-[2.2]" />
             </Link>
           )}
 
           <div className="min-w-0">
             {title ? (
-              <div className="text-sm sm:text-base font-extrabold text-theme-primary truncate">
+              <div className="text-sm sm:text-[15px] font-bold text-theme-primary truncate tracking-tight">
                 {title}
               </div>
             ) : (
               <Link href="/dashboard" className="block min-w-0">
-                <span className="font-extrabold text-base sm:text-lg tracking-tight text-theme-primary">
+                <span className="font-bold text-base sm:text-[17px] tracking-tight text-theme-primary">
                   Cattle<span className="text-emerald-600 dark:text-emerald-400">Vision</span>
                 </span>
               </Link>
@@ -107,13 +107,13 @@ export function AppHeader({
           </div>
         </div>
 
-        {/* Centro (Desktop): Navegação Rápida */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* Centro (Desktop): Navegação Principal */}
+        <nav aria-label="Navegação principal" className="hidden md:flex items-center gap-1">
           <Link
             href="/dashboard"
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
               pathname === "/dashboard"
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
                 : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
             }`}
           >
@@ -123,21 +123,21 @@ export function AppHeader({
 
           <Link
             href="/identify"
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
               pathname.startsWith("/identify")
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
                 : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
             }`}
           >
             <ScanLine className="w-4 h-4" />
-            <span>Identificar (RFID)</span>
+            <span>Identificar</span>
           </Link>
 
           <Link
             href="/animal/new"
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
               pathname === "/animal/new"
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
                 : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
             }`}
           >
@@ -148,9 +148,9 @@ export function AppHeader({
           {isAdmin && (
             <Link
               href="/admin"
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
                 pathname.startsWith("/admin")
-                  ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25"
                   : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
               }`}
             >
@@ -160,9 +160,15 @@ export function AppHeader({
           )}
         </nav>
 
-        {/* Lado Direito: Apenas Controles Essenciais (PWA, Tema e Sair) */}
+        {/* Lado Direito: Operador, PWA, Tema e Sair */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {actions}
+
+          {user?.name && (
+            <span className="hidden lg:inline-flex items-center px-2.5 py-1 rounded-md bg-theme-surface-2 border border-theme text-[11px] font-medium text-theme-secondary max-w-[140px] truncate">
+              {user.name}
+            </span>
+          )}
 
           <div className="hidden sm:block">
             <PwaInstallPrompt variant="button" />
@@ -178,9 +184,9 @@ export function AppHeader({
             onClick={handleLogout}
             title={`Sair da conta (${user?.name || "Operador"})`}
             aria-label="Sair da conta"
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 active:scale-95 transition touch-manipulation shrink-0"
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-theme-secondary hover:text-red-600 dark:hover:text-red-400 bg-theme-surface-2 hover:bg-red-500/10 border border-theme hover:border-red-500/30 active:scale-95 transition touch-manipulation shrink-0"
           >
-            <LogOut className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>

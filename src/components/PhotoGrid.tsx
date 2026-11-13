@@ -26,7 +26,8 @@ function PhotoCard({
 }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
-  const url = getPhotoUrl(photo.id);
+  // Solicita miniatura redimensionada (480px) para carregamento rápido na grade
+  const url = getPhotoUrl(photo.id, 480);
 
   const formattedDate = photo.createdAt
     ? new Date(photo.createdAt).toLocaleDateString('pt-BR', {
@@ -70,6 +71,7 @@ function PhotoCard({
           src={url}
           alt={`Foto ${index + 1}`}
           loading="lazy"
+          decoding="async"
           className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
             loaded ? 'opacity-100' : 'opacity-0'
           }`}
@@ -82,14 +84,15 @@ function PhotoCard({
 
       {hasScore && (
         <div
-          className={`absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold backdrop-blur-md shadow-xs pointer-events-none ${
+          title={`Qualidade de enquadramento: ${Math.round(photo.score as number)}%`}
+          className={`absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums backdrop-blur-md shadow-xs pointer-events-none ${
             isHighScore
               ? 'bg-emerald-600/90 text-white'
               : 'bg-amber-600/90 text-white'
           }`}
         >
           <Activity className="w-3 h-3" />
-          Enquadramento {Math.round(photo.score as number)}%
+          {Math.round(photo.score as number)}%
         </div>
       )}
 
@@ -144,8 +147,7 @@ export default function PhotoGrid({
             Nenhuma foto registrada para este animal
           </p>
           <p className="text-xs text-theme-secondary mt-1 max-w-xs mx-auto">
-            Utilize a câmera guiada com IA em tempo real ou envie uma imagem da
-            galeria do seu dispositivo.
+            Use a câmera guiada para capturar o animal ou envie uma foto da galeria.
           </p>
         </div>
       </div>

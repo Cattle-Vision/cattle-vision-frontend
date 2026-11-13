@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, ArrowLeft, User, Mail, Lock, Eye, EyeOff, ScanLine, AlertTriangle, UserPlus } from "lucide-react";
+import { Loader2, ArrowLeft, User, Mail, Lock, Eye, EyeOff, Activity, AlertTriangle, Check } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/lib/auth-context";
 
@@ -35,16 +35,11 @@ export default function RegisterPage() {
   return (
     <div className="min-h-[100dvh] flex bg-theme-bg text-theme-primary">
       {/* Painel lateral */}
-      <div className="hidden lg:flex w-[420px] xl:w-[460px] flex-col justify-between p-10 bg-slate-900 text-white relative overflow-hidden border-r border-slate-800">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 -left-24 w-80 h-80 rounded-full bg-emerald-500/20 blur-3xl"
-        />
-
-        <div className="relative z-10">
+      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col justify-between p-10 bg-[#10161D] text-white border-r border-slate-800">
+        <div>
           <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-md bg-emerald-500 flex items-center justify-center text-white shadow-xs">
-              <ScanLine className="w-5 h-5 stroke-[2.2]" />
+            <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
+              <Activity className="w-5 h-5 stroke-[2.2]" />
             </div>
             <span className="font-bold text-xl tracking-tight">
               Cattle<span className="text-emerald-400">Vision</span>
@@ -52,17 +47,31 @@ export default function RegisterPage() {
           </Link>
 
           <div className="mt-14">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md mb-4">
-              <UserPlus className="w-3.5 h-3.5" />
-              Gestão de Rebanho & ICS
-            </span>
-            <h1 className="text-3xl font-bold leading-tight tracking-tight">
-              Avaliação de Escore Corporal Bovina por IA.
+            <p className="font-mono-tag text-[11px] uppercase tracking-wider text-emerald-400 mb-3">
+              Cadastro de Operador
+            </p>
+            <h1 className="text-2xl xl:text-3xl font-bold leading-tight tracking-tight">
+              Organize o rebanho e registre capturas padronizadas em campo.
             </h1>
             <p className="mt-4 text-sm text-slate-300 leading-relaxed">
-              Fotografe a região posterior de bovinos com mira anatômica padronizada e
-              acesse o cálculo zootécnico inteligente de Índice de Condição Corporal em campo.
+              Crie sua conta para cadastrar animais, capturar fotos da região posterior com mira
+              guiada e compartilhar fichas com sua equipe.
             </p>
+          </div>
+        </div>
+
+        <div className="space-y-2.5 pt-6 border-t border-slate-800 text-xs text-slate-300">
+          <div className="flex items-center gap-2">
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Cadastro por brinco, raça, idade e tag RFID</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Galeria histórica com qualidade de enquadramento</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Guarda compartilhada por animal</span>
           </div>
         </div>
       </div>
@@ -81,7 +90,7 @@ export default function RegisterPage() {
             <div className="flex items-center gap-2.5">
               <div className="lg:hidden flex items-center gap-2">
                 <div className="w-7 h-7 rounded-md bg-emerald-600 flex items-center justify-center text-white">
-                  <ScanLine className="w-4 h-4 stroke-[2.2]" />
+                  <Activity className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <span className="font-bold text-sm text-theme-primary">
                   Cattle<span className="text-emerald-600 dark:text-emerald-400">Vision</span>

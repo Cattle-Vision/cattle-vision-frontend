@@ -21,12 +21,10 @@ import {
   ImagePlus,
   AlertCircle,
   AlertTriangle,
-  Upload,
   WifiOff,
   Loader2,
   Activity,
   SwitchCamera,
-  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { compressImageFile, formatBytes } from "@/lib/image-client";
@@ -264,10 +262,11 @@ function CameraContent() {
     if (screen !== "viewfinder" || !vidReady || !!camErr) return;
 
     let active = true;
-    let inFlightServerCheck = false;
-    let tickCount = 0;
 
-    const interval = setInterval(async () => {
+    // Executa apenas análise óptica local em tempo real no viewfinder,
+    // evitando tráfego de rede contínuo em áreas rurais; a avaliação completa
+    // é disparada apenas após a captura ou seleção da galeria.
+    const interval = setInterval(() => {
       if (!active) return;
       const video = videoRef.current;
       const scratch = scratchCanvasRef.current;
@@ -280,28 +279,7 @@ function CameraContent() {
           prev === null ? instant.score : Math.round(prev * 0.75 + instant.score * 0.25)
         );
       }
-
-      tickCount++;
-      if (tickCount % 4 === 0 && !inFlightServerCheck && navigator.onLine) {
-        inFlightServerCheck = true;
-        try {
-          const offCanvas = document.createElement("canvas");
-          const miniFrame = await captureVideoFrame(video, offCanvas, null, 640, 0.85);
-          if (miniFrame && active) {
-            const aiRes = await evaluatePhotoScoreBeforeUpload(miniFrame.blob);
-            if (active && typeof aiRes.score === "number") {
-              setLiveScore((prev) =>
-                prev === null ? Math.round(aiRes.score) : Math.round(prev * 0.7 + aiRes.score * 0.3)
-              );
-            }
-          }
-        } catch {
-          // Ignora falhas em segundo plano
-        } finally {
-          inFlightServerCheck = false;
-        }
-      }
-    }, 400);
+    }, 350);
 
     return () => {
       active = false;
@@ -597,39 +575,16 @@ function CameraContent() {
         </button>
 
         <div className="text-center min-w-0 px-1">
-          <p className="text-white font-bold text-xs sm:text-sm truncate max-w-[130px] xs:max-w-[170px] sm:max-w-[220px]">
+          <p className="text-white font-bold text-xs sm:text-sm truncate max-w-[160px] sm:max-w-[260px]">
             {animalName || "Captura Guiada"}
           </p>
-          <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-widest text-emerald-400 truncate">
-            Vista Posterior · Avaliação ICS
+          <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-400 truncate">
+            Vista Posterior · Garupa
           </p>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={handleSwitchCamera}
-            disabled={switchingCamera}
-            className="flex items-center gap-1 p-2 sm:px-2.5 sm:py-2 min-h-[38px] rounded-md bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md text-white text-xs font-semibold touch-manipulation transition"
-            title="Alternar entre câmeras ou inverter direção"
-            aria-label="Alternar câmera"
-          >
-            <SwitchCamera className={`w-4 h-4 ${switchingCamera ? "animate-spin text-emerald-400" : ""}`} />
-            <span className="hidden sm:inline">
-              {videoDevices.length > 1 ? `Lentes (${videoDevices.length})` : "Inverter"}
-            </span>
-          </button>
-
-          <button
-            onClick={() => galleryRef.current?.click()}
-            className="flex items-center gap-1 p-2 sm:px-2.5 sm:py-2 min-h-[38px] rounded-md bg-white/10 hover:bg-white/20 active:scale-95 backdrop-blur-md text-white text-xs font-semibold shrink-0 touch-manipulation transition"
-            title="Escolher da galeria"
-            aria-label="Escolher da galeria"
-          >
-            <Upload className="w-4 h-4" />
-            <span className="hidden xs:inline">Galeria</span>
-          </button>
-        </div>
+        {/* Espaçador para manter o título centralizado sem duplicar controles da barra inferior */}
+        <div className="w-9 sm:w-16 shrink-0" aria-hidden="true" />
       </div>
 
       {screen === "viewfinder" && (
@@ -857,14 +812,6 @@ function CameraContent() {
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                     )}
                     <span>{previewAnalysis.feedback}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-2 mt-1 border-t border-white/10">
-                    <span className="text-slate-400 font-medium">Predição ICS (ECC):</span>
-                    <span className="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      <Sparkles className="w-3 h-3 text-amber-400" />
-                      Em desenvolvimento
-                    </span>
                   </div>
                 </div>
               ) : null}

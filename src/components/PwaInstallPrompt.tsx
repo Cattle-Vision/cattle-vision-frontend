@@ -52,7 +52,9 @@ export function PwaInstallPrompt({
     };
   }, []);
 
-  if (isInstalled) return null;
+  // Só exibe o botão de instalação quando há prompt nativo disponível ou em iOS Safari,
+  // evitando poluir navegadores desktop não suportados com um modal de instruções iOS.
+  if (isInstalled || (!deferredPrompt && !isIos)) return null;
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -63,13 +65,10 @@ export function PwaInstallPrompt({
           setIsInstalled(true);
         }
       } catch {
-        // Fallback
+        // Fallback silencioso caso o navegador aborte o prompt
       }
       setDeferredPrompt(null);
     } else if (isIos) {
-      setShowIosGuide(true);
-    } else {
-      // Navegador que não disparou beforeinstallprompt (ou já dispensado)
       setShowIosGuide(true);
     }
   };

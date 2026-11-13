@@ -3,12 +3,11 @@
 /**
  * Painel Principal do Operador (`src/app/dashboard/page.tsx`).
  *
- * Funcionalidades:
- * - Priorização de apelido/nome do animal como título principal.
- * - Ocultação de tags RFID longas/aleatórias em pills discretos copiáveis.
- * - Identificação visual de Guarda Compartilhada (proprietário vs colaborador).
- * - Filtros rápidos: Todos, Meus Animais, Guarda Compartilhada, Com Fotos, Sem Fotos.
- * - Estatísticas zootécnicas e enquadramento anatômico de fotos.
+ * Otimizado para campo e desktop:
+ * - Usa `/api/animals?summary=1` + cache SWR em memória (`apiFetchCached`) para
+ *   navegação instantânea e menor tráfego em redes rurais.
+ * - Miniaturas solicitam `?w=480` (ou `?w=240` na visão em lista).
+ * - Modos de visualização Grade e Lista com filtros objetivos.
  */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -22,33 +21,41 @@ import {
   Calendar,
   Images,
   ChevronRight,
-  Filter,
   Loader2,
   Layers,
-  Sparkles,
   CheckCircle2,
   ShieldCheck,
   Users,
   Copy,
   Check,
+  LayoutGrid,
+  List,
+  RefreshCw,
 } from "lucide-react";
 import { Animal, getPhotoUrl } from "@/lib/types";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiFetchCached, getApiCacheSnapshot, invalidateApiCache } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
 import { useToast } from "@/components/ui/Toast";
 
 type FilterMode = "all" | "owned" | "shared" | "with_photos" | "without_photos";
+type ViewMode = "grid" | "list";
 
-function Skeleton() {
+const ANIMALS_SUMMARY_ENDPOINT = "/api/animals?summary=1";
+
+function getPhotoCount(animal: Animal): number {
+  return animal.photoCount ?? animal.photos?.length ?? 0;
+}
+
+function CardSkeleton() {
   return (
     <div className="card overflow-hidden">
       <div className="aspect-[16/10] skeleton rounded-none" />
       <div className="p-4 flex flex-col gap-3">
         <div className="h-4 skeleton w-2/3" />
         <div className="h-3 skeleton w-1/2" />
-        <div className="h-10 skeleton w-full rounded-xl mt-1" />
+        <div className="h-10 skeleton w-full rounded-lg mt-1" />
       </div>
     </div>
   );
@@ -60,35 +67,33 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
   const [imgErr, setImgErr] = useState(false);
 
   const lastPhoto = animal.photos?.[0];
-  const photoUrl = lastPhoto ? getPhotoUrl(lastPhoto.id) : null;
-  const displayName = animal.name?.trim() || "Vaca Sem Apelido";
-  const photoCount = animal.photos?.length ?? 0;
+  const photoUrl = lastPhoto ? getPhotoUrl(lastPhoto.id, 480) : null;
+  const displayName = animal.name?.trim() || "Sem apelido";
+  const photoCount = getPhotoCount(animal);
   const cameraUrl = `/camera?animalId=${animal.id}&animalName=${encodeURIComponent(displayName)}`;
   const bestScore =
     lastPhoto && typeof lastPhoto.score === "number" ? Math.round(lastPhoto.score) : null;
 
-  const isShared = animal.isShared || (currentUserId && animal.ownerId !== currentUserId);
+  const isShared = animal.isShared || (currentUserId !== undefined && animal.ownerId !== currentUserId);
 
   const copyRfid = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     navigator.clipboard.writeText(animal.tag);
     setCopied(true);
-    toast(`Tag RFID copiada: ${animal.tag}`, "info");
+    toast(`RFID copiado: ${animal.tag}`, "info");
     setTimeout(() => setCopied(false), 2000);
   };
 
   const shortTag =
-    animal.tag.length > 12
-      ? `${animal.tag.slice(0, 6)}...${animal.tag.slice(-4)}`
-      : animal.tag;
+    animal.tag.length > 14 ? `${animal.tag.slice(0, 6)}…${animal.tag.slice(-4)}` : animal.tag;
 
   return (
-    <div className="card overflow-hidden group relative hover:shadow-lg hover:border-emerald-500/60 transition-all duration-200 flex flex-col justify-between">
+    <div className="card overflow-hidden group relative hover:border-emerald-500/60 transition-colors flex flex-col justify-between">
       <Link
         href={`/animal/${animal.id}`}
         className="block focus:outline-none"
-        aria-label={`Ver ficha de ${displayName}`}
+        aria-label={`Abrir ficha de ${displayName}`}
       >
         <div className="aspect-[16/10] relative overflow-hidden bg-theme-surface-2">
           {photoUrl && !imgErr ? (
@@ -96,73 +101,64 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
               src={photoUrl}
               alt={displayName}
               loading="lazy"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              decoding="async"
+              className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
               onError={() => setImgErr(true)}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-theme-surface-2 text-theme-muted">
-              <Layers className="w-8 h-8 opacity-40 stroke-[1.5]" />
-              <span className="text-[11px] font-medium text-theme-muted">Sem foto</span>
+              <Layers className="w-7 h-7 opacity-40 stroke-[1.5]" />
+              <span className="text-[11px] font-medium">Sem foto</span>
             </div>
           )}
 
-          <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/65 to-transparent pointer-events-none" />
+          {(bestScore !== null || photoCount > 0) && (
+            <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/65 to-transparent pointer-events-none" />
+          )}
 
-          {/* Badge Superior Esquerdo: Guarda Compartilhada ou Dono */}
-          <div className="absolute top-2 left-2 flex items-center gap-1.5">
-            {isShared ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-600/90 text-white backdrop-blur-md shadow-xs">
+          {isShared && (
+            <div className="absolute top-2 left-2">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-600/90 text-white backdrop-blur-sm">
                 <Users className="w-3 h-3" />
-                Guarda Compartilhada
+                Compartilhado
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900/85 text-emerald-300 backdrop-blur-md shadow-xs">
-                Proprietário
-              </span>
-            )}
-          </div>
-
-          {/* Badge ICS */}
-          <div className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/90 text-white backdrop-blur-md shadow-xs">
-            <Sparkles className="w-3 h-3" />
-            ICS: Em dev.
-          </div>
-
-          {/* Qualidade de Enquadramento */}
-          {bestScore !== null && (
-            <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/75 text-emerald-300 backdrop-blur-md shadow-xs">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              Enquadramento {bestScore}%
             </div>
           )}
 
-          {/* Contagem de Fotos */}
-          <div className="absolute bottom-2 right-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-black/65 text-white backdrop-blur-md">
+          {bestScore !== null && (
+            <div
+              title={`Qualidade de enquadramento: ${bestScore}%`}
+              className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-md bg-black/70 text-emerald-300 backdrop-blur-sm"
+            >
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              {bestScore}%
+            </div>
+          )}
+
+          <div className="absolute bottom-2 right-2 inline-flex items-center gap-1 text-[11px] font-medium tabular-nums px-2 py-0.5 rounded-md bg-black/65 text-white backdrop-blur-sm">
             <Images className="w-3 h-3 text-emerald-400" />
-            {photoCount} {photoCount === 1 ? "foto" : "fotos"}
+            {photoCount}
           </div>
         </div>
 
         <div className="p-4 pb-3">
-          {/* Apelido em Destaque Absoluto */}
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <h3 className="font-extrabold text-base text-theme-primary truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <h3 className="font-bold text-[15px] text-theme-primary truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
               {displayName}
             </h3>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25 shrink-0">
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-theme-surface-2 text-theme-secondary border border-theme shrink-0">
               {animal.breed}
             </span>
           </div>
 
-          {/* Tag RFID Oculta/Discreta com Botão de Copiar */}
-          <div className="flex items-center gap-1.5 mb-2.5">
+          <div className="flex items-center gap-1.5 mb-3">
             <button
               type="button"
               onClick={copyRfid}
-              title={`Clique para copiar a tag RFID completa: ${animal.tag}`}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium text-theme-muted bg-theme-surface-2 hover:bg-theme-surface hover:text-theme-primary border border-theme transition"
+              title={`Copiar identificação: ${animal.tag}`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono text-theme-secondary bg-theme-surface-2 hover:text-theme-primary border border-theme transition"
             >
-              <span>RFID: {shortTag}</span>
+              <span>{shortTag}</span>
               {copied ? (
                 <Check className="w-3 h-3 text-emerald-500" />
               ) : (
@@ -171,27 +167,17 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
             </button>
           </div>
 
-          {/* Dados Zootécnicos */}
-          <div className="flex items-center gap-3 text-xs font-medium text-theme-secondary">
+          <div className="flex items-center gap-2.5 text-xs text-theme-secondary tabular-nums">
             <span>{animal.sex}</span>
-            <span>•</span>
+            <span className="text-theme-muted">·</span>
             <span className="inline-flex items-center gap-1">
               <Scale className="w-3.5 h-3.5 text-theme-muted" />
               {animal.weight} kg
             </span>
-            <span>•</span>
+            <span className="text-theme-muted">·</span>
             <span className="inline-flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-theme-muted" />
               {animal.age}m
-            </span>
-          </div>
-
-          {/* Linha de Diagnóstico ICS */}
-          <div className="mt-3 pt-2 border-t border-theme/60 flex items-center justify-between text-xs">
-            <span className="text-[11px] font-semibold text-theme-muted">Diagnóstico ICS</span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25">
-              <Sparkles className="w-3 h-3 text-amber-500" />
-              Em desenvolvimento
             </span>
           </div>
         </div>
@@ -200,7 +186,7 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
       <div className="px-4 pb-4 pt-1 flex items-center gap-2">
         <Link
           href={cameraUrl}
-          className="btn-primary flex-1 py-2.5 min-h-[44px] text-xs font-bold"
+          className="btn-primary flex-1 py-2 min-h-[40px] text-xs font-semibold"
           aria-label={`Fotografar ${displayName}`}
         >
           <Camera className="w-4 h-4" />
@@ -208,7 +194,7 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
         </Link>
         <Link
           href={`/animal/${animal.id}`}
-          className="btn-secondary px-3.5 py-2.5 min-h-[44px] text-xs font-bold"
+          className="btn-secondary px-3 py-2 min-h-[40px] text-xs font-semibold"
           title="Abrir ficha e galeria"
         >
           Ficha
@@ -219,11 +205,89 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
   );
 }
 
+function AnimalListRow({ animal, currentUserId }: { animal: Animal; currentUserId?: number }) {
+  const [imgErr, setImgErr] = useState(false);
+  const lastPhoto = animal.photos?.[0];
+  const thumbUrl = lastPhoto ? getPhotoUrl(lastPhoto.id, 240) : null;
+  const displayName = animal.name?.trim() || "Sem apelido";
+  const photoCount = getPhotoCount(animal);
+  const bestScore =
+    lastPhoto && typeof lastPhoto.score === "number" ? Math.round(lastPhoto.score) : null;
+  const isShared = animal.isShared || (currentUserId !== undefined && animal.ownerId !== currentUserId);
+  const cameraUrl = `/camera?animalId=${animal.id}&animalName=${encodeURIComponent(displayName)}`;
+
+  return (
+    <div className="card p-3 flex items-center gap-3.5 hover:border-emerald-500/60 transition-colors">
+      <Link
+        href={`/animal/${animal.id}`}
+        className="w-20 h-14 rounded-lg overflow-hidden bg-theme-surface-2 shrink-0 flex items-center justify-center border border-theme"
+      >
+        {thumbUrl && !imgErr ? (
+          <img
+            src={thumbUrl}
+            alt={displayName}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover"
+            onError={() => setImgErr(true)}
+          />
+        ) : (
+          <Layers className="w-5 h-5 text-theme-muted opacity-40" />
+        )}
+      </Link>
+
+      <Link href={`/animal/${animal.id}`} className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-sm text-theme-primary truncate hover:text-emerald-600 dark:hover:text-emerald-400">
+            {displayName}
+          </span>
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-theme-surface-2 border border-theme text-theme-secondary shrink-0">
+            {animal.breed}
+          </span>
+          {isShared && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/12 text-blue-700 dark:text-blue-300 shrink-0">
+              <Users className="w-3 h-3" />
+              Compartilhado
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-theme-secondary tabular-nums">
+          <span className="font-mono text-[11px] text-theme-muted">{animal.tag}</span>
+          <span>{animal.sex}</span>
+          <span>{animal.weight} kg</span>
+          <span>{animal.age}m</span>
+          <span>{photoCount} {photoCount === 1 ? "foto" : "fotos"}</span>
+          {bestScore !== null && (
+            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+              Enquadramento {bestScore}%
+            </span>
+          )}
+        </div>
+      </Link>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <Link href={cameraUrl} className="btn-primary py-2 px-3 min-h-[38px] text-xs font-semibold">
+          <Camera className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">Fotografar</span>
+        </Link>
+        <Link href={`/animal/${animal.id}`} className="btn-secondary py-2 px-3 min-h-[38px] text-xs font-semibold">
+          Ficha
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
-  const [animals, setAnimals] = useState<Animal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialSnapshot = getApiCacheSnapshot<Animal[]>(ANIMALS_SUMMARY_ENDPOINT);
+  const [animals, setAnimals] = useState<Animal[]>(() =>
+    Array.isArray(initialSnapshot) ? initialSnapshot : []
+  );
+  const [loading, setLoading] = useState<boolean>(() => !Array.isArray(initialSnapshot));
+  const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [recalibratingHerd, setRecalibratingHerd] = useState(false);
   const router = useRouter();
   const { user, isAdmin, loading: authLoading } = useAuth();
@@ -231,27 +295,38 @@ export default function DashboardPage() {
 
   const currentUserId = user ? Number(user.id) : undefined;
 
-  const loadAnimals = useCallback(async () => {
-    try {
-      const data = await apiFetch<Animal[]>("/api/animals");
-      if (Array.isArray(data)) {
-        setAnimals(data);
+  const loadAnimals = useCallback(
+    async (forceRefresh = false) => {
+      if (forceRefresh) {
+        setRefreshing(true);
+        invalidateApiCache("/api/animals");
       }
-    } catch (err: any) {
-      if (err?.message?.includes("401") || err?.message?.includes("Token")) {
-        router.push("/login");
+      try {
+        const data = await apiFetchCached<Animal[]>(
+          ANIMALS_SUMMARY_ENDPOINT,
+          forceRefresh ? 0 : 15_000
+        );
+        if (Array.isArray(data)) {
+          setAnimals(data);
+        }
+      } catch (err: any) {
+        if (err?.message?.includes("401") || err?.message?.includes("Token")) {
+          router.push("/login");
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+    },
+    [router]
+  );
 
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
         router.push("/login");
       } else {
-        loadAnimals();
+        loadAnimals(false);
       }
     }
   }, [authLoading, user, router, loadAnimals]);
@@ -259,10 +334,10 @@ export default function DashboardPage() {
   const handleRecalibrateHerd = async () => {
     if (recalibratingHerd) return;
     const ok = await confirm({
-      title: "Recalcular Enquadramento do Rebanho",
+      title: "Recalcular Enquadramento",
       message:
-        "Deseja recalcular a qualidade de enquadramento anatômico de todas as fotos com a IA neural calibrada?",
-      confirmText: "Recalcular Rebanho",
+        "Deseja reprocessar a qualidade de enquadramento de todas as fotos do rebanho?",
+      confirmText: "Recalcular",
       variant: "primary",
     });
     if (!ok) return;
@@ -270,8 +345,8 @@ export default function DashboardPage() {
     setRecalibratingHerd(true);
     try {
       const data = await apiFetch<any>("/api/animals/recalibrate", { method: "POST" });
-      toast(data?.message || `${data?.updatedCount ?? 0} fotos recalculadas com sucesso!`, "success");
-      await loadAnimals();
+      toast(data?.message || `${data?.updatedCount ?? 0} fotos recalculadas.`, "success");
+      await loadAnimals(true);
     } catch (err: any) {
       toast(err?.message || "Erro ao recalcular enquadramento", "error");
     } finally {
@@ -281,30 +356,41 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const totalAnimals = animals.length;
-    const totalPhotos = animals.reduce((acc, a) => acc + (a.photos?.length ?? 0), 0);
-    const withPhotos = animals.filter((a) => (a.photos?.length ?? 0) > 0).length;
+    const totalPhotos = animals.reduce((acc, a) => acc + getPhotoCount(a), 0);
+    const withPhotos = animals.filter((a) => getPhotoCount(a) > 0).length;
+    const withoutPhotos = totalAnimals - withPhotos;
     const sharedCount = animals.filter(
-      (a) => a.isShared || (currentUserId && a.ownerId !== currentUserId)
+      (a) => a.isShared || (currentUserId !== undefined && a.ownerId !== currentUserId)
     ).length;
+    const ownedCount = totalAnimals - sharedCount;
     const avgWeight =
       totalAnimals > 0
         ? Math.round(animals.reduce((acc, a) => acc + (Number(a.weight) || 0), 0) / totalAnimals)
         : 0;
     const coverage = totalAnimals > 0 ? Math.round((withPhotos / totalAnimals) * 100) : 0;
-    return { totalAnimals, totalPhotos, withPhotos, sharedCount, avgWeight, coverage };
+    return {
+      totalAnimals,
+      totalPhotos,
+      withPhotos,
+      withoutPhotos,
+      sharedCount,
+      ownedCount,
+      avgWeight,
+      coverage,
+    };
   }, [animals, currentUserId]);
 
   const filtered = useMemo(() => {
+    const q = query.trim().toUpperCase();
     return animals.filter((a) => {
-      const photoCount = a.photos?.length ?? 0;
-      const isShared = a.isShared || (currentUserId && a.ownerId !== currentUserId);
+      const photoCount = getPhotoCount(a);
+      const isShared = a.isShared || (currentUserId !== undefined && a.ownerId !== currentUserId);
 
       if (filterMode === "owned" && isShared) return false;
       if (filterMode === "shared" && !isShared) return false;
       if (filterMode === "with_photos" && photoCount === 0) return false;
       if (filterMode === "without_photos" && photoCount > 0) return false;
 
-      const q = query.trim().toUpperCase();
       if (!q) return true;
       return (
         a.tag.toUpperCase().includes(q) ||
@@ -314,144 +400,210 @@ export default function DashboardPage() {
     });
   }, [animals, query, filterMode, currentUserId]);
 
+  const filterTabs = useMemo(() => {
+    const tabs: { id: FilterMode; label: string; count: number }[] = [
+      { id: "all", label: "Todos", count: stats.totalAnimals },
+      ...(stats.sharedCount > 0
+        ? [
+            { id: "owned" as const, label: "Meus", count: stats.ownedCount },
+            { id: "shared" as const, label: "Compartilhados", count: stats.sharedCount },
+          ]
+        : []),
+      { id: "with_photos", label: "Com fotos", count: stats.withPhotos },
+      { id: "without_photos", label: "Sem fotos", count: stats.withoutPhotos },
+    ];
+    return tabs;
+  }, [stats]);
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary">
       <AppHeader
-        title="Meu Rebanho"
+        title="Rebanho"
         subtitle={
           loading
-            ? "Carregando rebanho…"
-            : `${stats.totalAnimals} animais · ${stats.totalPhotos} fotos avaliadas`
+            ? "Carregando…"
+            : `${stats.totalAnimals} ${stats.totalAnimals === 1 ? "animal" : "animais"} · ${stats.totalPhotos} fotos`
+        }
+        actions={
+          <Link
+            href="/animal/new"
+            className="hidden sm:inline-flex btn-primary py-1.5 px-3 min-h-[36px] text-xs font-semibold"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Novo animal
+          </Link>
         }
       />
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 pb-20 sm:pb-8">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 pb-24 sm:pb-8">
         {!loading && animals.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            <div className="card p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-theme-muted">
-                Total de Animais
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div className="card p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
+                Animais
               </p>
-              <p className="text-2xl font-extrabold text-theme-primary mt-1">
+              <p className="text-xl sm:text-2xl font-bold tabular-nums text-theme-primary mt-1">
                 {stats.totalAnimals}
               </p>
               <p className="text-[11px] text-theme-secondary mt-0.5">
                 {stats.sharedCount > 0 ? `${stats.sharedCount} compartilhados` : "Rebanho ativo"}
               </p>
             </div>
-            <div className="card p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                Avaliações ICS
+            <div className="card p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                Capturas
               </p>
-              <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+              <p className="text-xl sm:text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400 mt-1">
                 {stats.totalPhotos}
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Fotos anatômicas</p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">Fotos registradas</p>
             </div>
-            <div className="card p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-theme-muted">
+            <div className="card p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
                 Cobertura
               </p>
-              <p className="text-2xl font-extrabold text-theme-primary mt-1">
+              <p className="text-xl sm:text-2xl font-bold tabular-nums text-theme-primary mt-1">
                 {stats.coverage}%
               </p>
               <p className="text-[11px] text-theme-secondary mt-0.5">
                 {stats.withPhotos} de {stats.totalAnimals} com foto
               </p>
             </div>
-            <div className="card p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-theme-muted">
+            <div className="card p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
                 Peso Médio
               </p>
-              <p className="text-2xl font-extrabold text-theme-primary mt-1">
+              <p className="text-xl sm:text-2xl font-bold tabular-nums text-theme-primary mt-1">
                 {stats.avgWeight}{" "}
-                <span className="text-sm font-semibold text-theme-secondary">kg</span>
+                <span className="text-xs font-medium text-theme-secondary">kg</span>
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Média do rebanho</p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">Média do lote</p>
             </div>
           </div>
         )}
 
         {!loading && animals.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted pointer-events-none" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar por apelido, raça ou RFID…"
-                className="field-input pl-10"
-              />
+          <div className="flex flex-col gap-3 mb-5">
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted pointer-events-none" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar por apelido, raça ou RFID…"
+                  className="field-input pl-10"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="hidden sm:flex items-center bg-theme-surface border border-theme rounded-lg p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("grid")}
+                    aria-label="Visualização em grade"
+                    title="Grade"
+                    className={`p-1.5 rounded-md transition ${
+                      viewMode === "grid"
+                        ? "bg-emerald-600 text-white"
+                        : "text-theme-secondary hover:text-theme-primary"
+                    }`}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("list")}
+                    aria-label="Visualização em lista"
+                    title="Lista"
+                    className={`p-1.5 rounded-md transition ${
+                      viewMode === "list"
+                        ? "bg-emerald-600 text-white"
+                        : "text-theme-secondary hover:text-theme-primary"
+                    }`}
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => loadAnimals(true)}
+                  disabled={refreshing}
+                  title="Atualizar lista"
+                  aria-label="Atualizar lista"
+                  className="btn-secondary py-2 px-3 min-h-[42px] text-xs font-medium"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
+
+                {stats.totalPhotos > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleRecalibrateHerd}
+                    disabled={recalibratingHerd}
+                    className="btn-secondary py-2 px-3 min-h-[42px] text-xs font-medium flex-1 sm:flex-initial"
+                    title="Recalcular qualidade de enquadramento das fotos"
+                  >
+                    {recalibratingHerd ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                    ) : (
+                      <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    )}
+                    <span>{recalibratingHerd ? "Recalculando…" : "Recalcular scores"}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 bg-theme-surface border border-theme rounded-xl p-1 shrink-0 overflow-x-auto">
-              <Filter className="w-3.5 h-3.5 text-theme-muted ml-2 mr-1 shrink-0" />
-              {(
-                [
-                  { id: "all", label: "Todos" },
-                  { id: "owned", label: "Meus" },
-                  { id: "shared", label: "Compartilhados" },
-                  { id: "with_photos", label: "Com fotos" },
-                  { id: "without_photos", label: "Sem fotos" },
-                ] as const
-              ).map((tab) => (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              {filterTabs.map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setFilterMode(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 border ${
                     filterMode === tab.id
-                      ? "bg-emerald-600 text-white shadow-2xs"
-                      : "text-theme-secondary hover:bg-theme-surface-2"
+                      ? "bg-emerald-600 text-white border-emerald-600"
+                      : "bg-theme-surface text-theme-secondary border-theme hover:text-theme-primary"
                   }`}
                 >
-                  {tab.label}
+                  <span>{tab.label}</span>
+                  <span
+                    className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
+                      filterMode === tab.id
+                        ? "bg-white/20 text-white"
+                        : "bg-theme-surface-2 text-theme-muted"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
                 </button>
               ))}
             </div>
-
-            {stats.totalPhotos > 0 && (
-              <button
-                type="button"
-                onClick={handleRecalibrateHerd}
-                disabled={recalibratingHerd}
-                className="btn-secondary py-1.5 px-3 min-h-[42px] text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 border-emerald-500/30 hover:border-emerald-500/50"
-                title="Recalcular qualidade de enquadramento de todas as fotos do seu rebanho usando a IA calibrada"
-              >
-                {recalibratingHerd ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
-                ) : (
-                  <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                )}
-                <span>
-                  {recalibratingHerd ? "Recalculando…" : "Recalcular Enquadramento"}
-                </span>
-              </button>
-            )}
           </div>
         )}
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} />
+              <CardSkeleton key={i} />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="card py-16 px-6 flex flex-col items-center justify-center gap-3 text-center max-w-lg mx-auto my-6">
-            <div className="w-12 h-12 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Layers className="w-6 h-6 text-emerald-600 dark:text-emerald-400 stroke-[1.5]" />
+          <div className="card py-14 px-6 flex flex-col items-center justify-center gap-3 text-center max-w-lg mx-auto my-6">
+            <div className="w-11 h-11 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <Layers className="w-5 h-5 text-emerald-600 dark:text-emerald-400 stroke-[1.75]" />
             </div>
             <div>
               <h2 className="text-base font-bold text-theme-primary">
                 {query || filterMode !== "all"
                   ? "Nenhum animal encontrado para este filtro"
-                  : "Comece cadastrando seu primeiro animal"}
+                  : "Nenhum animal cadastrado"}
               </h2>
               <p className="text-xs text-theme-secondary mt-1 max-w-sm mx-auto">
                 {query || filterMode !== "all"
-                  ? "Limpe a busca ou altere o filtro para visualizar todos os animais."
-                  : "Cadastre o apelido, RFID/brinco e os dados básicos do bovino para liberar a captura guiada de fotos."}
+                  ? "Limpe a busca ou troque o filtro para ver todo o rebanho."
+                  : "Cadastre o primeiro bovino com apelido, brinco ou RFID para iniciar as capturas."}
               </p>
             </div>
             {query || filterMode !== "all" ? (
@@ -461,27 +613,33 @@ export default function DashboardPage() {
                   setQuery("");
                   setFilterMode("all");
                 }}
-                className="btn-secondary px-5 py-2.5 text-sm"
+                className="btn-secondary px-4 py-2 text-xs font-semibold"
               >
                 Limpar filtros
               </button>
             ) : (
-              <div className="flex flex-wrap justify-center gap-3 mt-1">
-                <Link href="/animal/new" className="btn-primary px-6 py-3">
+              <div className="flex flex-wrap justify-center gap-2.5 mt-1">
+                <Link href="/animal/new" className="btn-primary px-5 py-2.5 text-sm">
                   <Plus className="w-4 h-4" />
-                  Cadastrar Primeiro Animal
+                  Cadastrar animal
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" className="btn-secondary px-5 py-3">
+                  <Link href="/admin" className="btn-secondary px-4 py-2.5 text-sm">
                     <ShieldCheck className="w-4 h-4 text-amber-500" />
-                    Ver Todos no Painel Admin
+                    Painel Admin
                   </Link>
                 )}
               </div>
             )}
           </div>
+        ) : viewMode === "list" ? (
+          <div className="space-y-2.5">
+            {filtered.map((a) => (
+              <AnimalListRow key={a.id} animal={a} currentUserId={currentUserId} />
+            ))}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((a) => (
               <AnimalCard key={a.id} animal={a} currentUserId={currentUserId} />
             ))}

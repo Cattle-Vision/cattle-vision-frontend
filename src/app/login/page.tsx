@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Eye, EyeOff, ShieldCheck, ArrowLeft, Lock, Mail, ScanLine, AlertTriangle } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowLeft, Lock, Mail, Activity, AlertTriangle, Check } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/lib/auth-context";
 
@@ -38,16 +38,11 @@ export default function LoginPage() {
   return (
     <div className="min-h-[100dvh] flex bg-theme-bg text-theme-primary">
       {/* Painel lateral — Visível em telas grandes */}
-      <div className="hidden lg:flex w-[420px] xl:w-[460px] flex-col justify-between p-10 bg-slate-900 text-white relative overflow-hidden border-r border-slate-800">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-emerald-500/20 blur-3xl"
-        />
-
-        <div className="relative z-10">
-          <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-md bg-emerald-500 flex items-center justify-center text-white shadow-xs">
-              <ScanLine className="w-5 h-5 stroke-[2.2]" />
+      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col justify-between p-10 bg-[#10161D] text-white border-r border-slate-800">
+        <div>
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
+              <Activity className="w-5 h-5 stroke-[2.2]" />
             </div>
             <span className="font-bold text-xl tracking-tight">
               Cattle<span className="text-emerald-400">Vision</span>
@@ -55,27 +50,32 @@ export default function LoginPage() {
           </Link>
 
           <div className="mt-14">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md mb-4">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Avaliação Zootécnica Inteligente
-            </span>
-            <h1 className="text-3xl font-bold leading-tight tracking-tight">
-              Cálculo e Gestão de ICS Bovino via Visão Computacional.
+            <p className="font-mono-tag text-[11px] uppercase tracking-wider text-emerald-400 mb-3">
+              Acesso do Operador
+            </p>
+            <h1 className="text-2xl xl:text-3xl font-bold leading-tight tracking-tight">
+              Controle de rebanho e registro fotográfico em campo.
             </h1>
             <p className="mt-4 text-sm text-slate-300 leading-relaxed">
-              Monitore a condição corporal do seu rebanho com precisão métrica.
-              Capture fotos com enquadramento anatômico assistido por IA e obtenha diagnósticos zootécnicos padronizados.
+              Acesse as fichas do lote, faça capturas padronizadas da garupa e acompanhe a
+              condição corporal de cada animal.
             </p>
           </div>
         </div>
 
-        <div className="relative z-10 rounded-lg bg-white/5 border border-white/10 p-4 backdrop-blur-xs">
-          <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-1">
-            Enquadramento Anatômico Assistido
-          </p>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            A mira inteligente valida em tempo real a visualização da garupa, ísquios e coluna para assegurar avaliações precisas de escore corporal.
-          </p>
+        <div className="space-y-2.5 pt-6 border-t border-slate-800 text-xs text-slate-300">
+          <div className="flex items-center gap-2">
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Identificação por brinco, apelido ou RFID BLE</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Validação instantânea de enquadramento na câmera</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>Sincronização automática após trabalho offline</span>
+          </div>
         </div>
       </div>
 
@@ -94,7 +94,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-2.5">
               <div className="lg:hidden flex items-center gap-2">
                 <div className="w-7 h-7 rounded-md bg-emerald-600 flex items-center justify-center text-white">
-                  <ScanLine className="w-4 h-4 stroke-[2.2]" />
+                  <Activity className="w-4 h-4 stroke-[2.2]" />
                 </div>
                 <span className="font-bold text-sm text-theme-primary">
                   Cattle<span className="text-emerald-600 dark:text-emerald-400">Vision</span>

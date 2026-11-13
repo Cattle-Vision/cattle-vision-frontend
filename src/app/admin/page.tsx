@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Download,
-  ArrowLeft,
   Users,
   ImageIcon,
   Loader2,
@@ -26,7 +25,14 @@ import {
   X,
 } from 'lucide-react';
 import { AnimalWithOwner, getPhotoUrl } from '@/lib/types';
-import { apiFetch, getApiUrl, getStoredToken } from '@/lib/api';
+import {
+  apiFetch,
+  apiFetchCached,
+  getApiCacheSnapshot,
+  invalidateApiCache,
+  getApiUrl,
+  getStoredToken,
+} from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/Toast';
 import PhotoLightbox from '@/components/PhotoLightbox';
@@ -58,10 +64,19 @@ function SkeletonCard() {
 }
 
 export default function AdminPage() {
+  const cachedAnimals = getApiCacheSnapshot<AnimalWithOwner[]>('/api/admin/animals');
+  const cachedUsers = getApiCacheSnapshot<AdminUserRow[]>('/api/admin/users');
+
   const [activeTab, setActiveTab] = useState<'dataset' | 'users'>('dataset');
-  const [animals, setAnimals] = useState<AnimalWithOwner[]>([]);
-  const [users, setUsers] = useState<AdminUserRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [animals, setAnimals] = useState<AnimalWithOwner[]>(() =>
+    Array.isArray(cachedAnimals) ? cachedAnimals : []
+  );
+  const [users, setUsers] = useState<AdminUserRow[]>(() =>
+    Array.isArray(cachedUsers) ? cachedUsers : []
+  );
+  const [loading, setLoading] = useState<boolean>(
+    () => !Array.isArray(cachedAnimals) || !Array.isArray(cachedUsers)
+  );
   const [downloading, setDownloading] = useState(false);
   const [recalibrating, setRecalibrating] = useState(false);
 
@@ -82,24 +97,31 @@ export default function AdminPage() {
   const router = useRouter();
   const { user, isAdmin, loading: authLoading } = useAuth();
 
-  const loadData = useCallback(async () => {
-    try {
-      const [animalsData, usersData] = await Promise.all([
-        apiFetch<AnimalWithOwner[]>('/api/admin/animals'),
-        apiFetch<AdminUserRow[]>('/api/admin/users'),
-      ]);
-      if (Array.isArray(animalsData)) setAnimals(animalsData);
-      if (Array.isArray(usersData)) setUsers(usersData);
-    } catch (err: any) {
-      if (err?.message?.includes('403') || err?.message?.includes('Acesso negado')) {
-        router.push('/dashboard');
-      } else if (err?.message?.includes('401') || err?.message?.includes('Token')) {
-        router.push('/login');
+  const loadData = useCallback(
+    async (forceRefresh = false) => {
+      if (forceRefresh) {
+        invalidateApiCache('/api/admin');
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+      try {
+        const ttl = forceRefresh ? 0 : 15_000;
+        const [animalsData, usersData] = await Promise.all([
+          apiFetchCached<AnimalWithOwner[]>('/api/admin/animals', ttl),
+          apiFetchCached<AdminUserRow[]>('/api/admin/users', ttl),
+        ]);
+        if (Array.isArray(animalsData)) setAnimals(animalsData);
+        if (Array.isArray(usersData)) setUsers(usersData);
+      } catch (err: any) {
+        if (err?.message?.includes('403') || err?.message?.includes('Acesso negado')) {
+          router.push('/dashboard');
+        } else if (err?.message?.includes('401') || err?.message?.includes('Token')) {
+          router.push('/login');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [router]
+  );
 
   useEffect(() => {
     if (!authLoading) {
@@ -206,7 +228,7 @@ export default function AdminPage() {
         data?.message || `${data?.updatedCount ?? 0} fotos recalculadas com sucesso!`,
         'success'
       );
-      await loadData();
+      await loadData(true);
     } catch (err: any) {
       toast(err?.message || 'Erro ao recalcular confiança da IA', 'error');
     } finally {
@@ -476,7 +498,7 @@ export default function AdminPage() {
                   const photos = animal.photos ?? [];
                   const photoCount = photos.length;
                   const firstPhoto = photos[0];
-                  const photoUrl = firstPhoto ? getPhotoUrl(firstPhoto.id) : null;
+                  const photoUrl = firstPhoto ? getPhotoUrl(firstPhoto.id, 240) : null;
 
                   return (
                     <div
@@ -490,6 +512,7 @@ export default function AdminPage() {
                             alt={animal.tag}
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            decoding="async"
                           />
                         ) : (
                           <Camera className="w-6 h-6 text-theme-muted opacity-40" />

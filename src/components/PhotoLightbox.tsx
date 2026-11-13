@@ -4,7 +4,7 @@
  * PhotoLightbox — Visualizador fullscreen de fotos (`src/components/PhotoLightbox.tsx`).
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2, Sparkles } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2 } from 'lucide-react';
 import { Photo, getPhotoUrl } from '@/lib/types';
 import { apiFetch } from '@/lib/api';
 
@@ -21,6 +21,10 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
   const [recalibrating, setRecalibrating] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    setLocalPhotos(photos);
+  }, [photos]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -115,15 +119,11 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
             {currentIndex + 1} / {localPhotos.length}
           </span>
           {hasScore && (
-            <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               <Activity className="w-3.5 h-3.5" />
               Enquadramento: {Math.round(currentPhoto.score as number)}%
             </span>
           )}
-          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            ICS: Em dev.
-          </span>
         </div>
 
         <div className="flex items-center gap-1.5">
