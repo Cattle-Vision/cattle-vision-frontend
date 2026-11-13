@@ -4,8 +4,17 @@
  * - Assets imutáveis `/_next/static/*`: Cache-First para carregamento instantâneo.
  * - Páginas e navegação: Network-First com fallback em cache para resiliência no campo.
  */
-const CACHE_NAME = "cattle-vision-pwa-v3";
-const PRECACHE_URLS = ["/", "/login", "/dashboard", "/icon.svg", "/manifest.webmanifest"];
+const CACHE_NAME = "cattle-vision-pwa-v4";
+const PRECACHE_URLS = [
+  "/",
+  "/login",
+  "/dashboard",
+  "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+  "/manifest.webmanifest",
+];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();

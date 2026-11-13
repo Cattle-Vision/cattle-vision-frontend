@@ -13,11 +13,28 @@ export interface User {
   createdAt?: string;
 }
 
+export interface ContourPoint {
+  x: number;
+  y: number;
+}
+
+export type SlaughterStatus = "IN_DEVELOPMENT" | "READY" | "NOT_READY";
+
 export interface IcsData {
+  aiAvailable?: boolean;
   status: "IN_DEVELOPMENT" | "CALCULATED" | "ERROR";
   score?: number | null;
   scale?: string;
   classification?: string;
+  slaughterReady?: boolean | null;
+  slaughterStatus?: SlaughterStatus;
+  slaughterLabel?: string;
+  slaughterReason?: string;
+  morphologicalFeatures?: Record<string, number> | null;
+  contourPoints?: ContourPoint[] | null;
+  aiModelVersion?: string | null;
+  source?: string;
+  estimatedAt?: string;
   message?: string;
 }
 
@@ -27,8 +44,73 @@ export interface Photo {
   filePath?: string;
   view?: string;
   score?: number | null; // Confiança anatômica do enquadramento (0-100)
+  icsStatus?: string | null;
+  icsScore?: number | null;
+  icsClassification?: string | null;
+  slaughterReady?: boolean | null;
+  slaughterStatus?: string | null;
+  slaughterReason?: string | null;
+  morphologicalFeatures?: Record<string, number> | null;
+  contourPoints?: ContourPoint[] | null;
+  aiModelVersion?: string | null;
+  evaluatedAt?: string | null;
   ics?: IcsData | null;
   createdAt?: string;
+}
+
+export interface VaccineRecord {
+  id: string;
+  animalId: string;
+  name: string;
+  dose?: string | null;
+  batch?: string | null;
+  appliedAt: string;
+  nextDueAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type DiseaseStatus = "ACTIVE" | "MONITORING" | "RECOVERED";
+
+export interface DiseaseRecord {
+  id: string;
+  animalId: string;
+  name: string;
+  symptoms?: string | null;
+  treatment?: string | null;
+  status: DiseaseStatus;
+  diagnosedAt: string;
+  recoveredAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface AnimalLocationLog {
+  id: string;
+  animalId: string;
+  location: string;
+  reason?: string | null;
+  movedAt: string;
+  createdAt: string;
+}
+
+export type ObservationCategory =
+  | "GERAL"
+  | "MANEJO"
+  | "NUTRICAO"
+  | "COMPORTAMENTO"
+  | "OUTRA";
+
+export interface AnimalObservation {
+  id: string;
+  animalId: string;
+  category: ObservationCategory;
+  title?: string | null;
+  content: string;
+  observedAt: string;
+  recordedById?: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CustodyUser {
@@ -71,13 +153,20 @@ export interface Animal {
   sex: string;
   weight: number;
   age: number;
+  length?: number | null;
+  location?: string | null;
+  observations?: string | null;
   ownerId: number;
+  ics?: IcsData | null;
+  vaccines?: VaccineRecord[];
+  diseases?: DiseaseRecord[];
+  locationLogs?: AnimalLocationLog[];
+  observationRecords?: AnimalObservation[];
   isOwner?: boolean;
   isShared?: boolean;
   custody?: CustodyInfo;
   createdAt?: string;
   updatedAt?: string;
-  ics?: IcsData | null;
   photoCount?: number;
   photos: Photo[];
 }

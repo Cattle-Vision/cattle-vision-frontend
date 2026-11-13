@@ -83,18 +83,18 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const cached = getApiCacheSnapshot<{ animals: Animal[] }>("/api/animals?summary=1");
-    if (cached?.animals) {
-      const photos = cached.animals.reduce(
+    const cached = getApiCacheSnapshot<Animal[]>("/api/animals?summary=1");
+    if (Array.isArray(cached)) {
+      const photos = cached.reduce(
         (acc, a) => acc + (a.photoCount ?? a.photos?.length ?? 0),
         0
       );
-      setHerdStats({ animals: cached.animals.length, photos });
+      setHerdStats({ animals: cached.length, photos });
     }
 
-    apiFetchCached<{ animals: Animal[] }>("/api/animals?summary=1", 15000)
+    apiFetchCached<Animal[]>("/api/animals?summary=1", 15000)
       .then((res) => {
-        const list = res.animals || [];
+        const list = Array.isArray(res) ? res : [];
         const photos = list.reduce(
           (acc, a) => acc + (a.photoCount ?? a.photos?.length ?? 0),
           0

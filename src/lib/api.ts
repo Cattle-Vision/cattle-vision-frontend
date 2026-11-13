@@ -11,7 +11,17 @@
  * Possui interceptador Self-Healing que limpa credenciais inválidas em respostas 401.
  */
 
-import { RfidScanResult, Animal, User } from "./types";
+import {
+  Animal,
+  AnimalLocationLog,
+  AnimalObservation,
+  DiseaseRecord,
+  DiseaseStatus,
+  ObservationCategory,
+  RfidScanResult,
+  User,
+  VaccineRecord,
+} from "./types";
 
 const TOKEN_KEY = "cattle_vision_jwt_token";
 const USER_CACHE_KEY = "cattle_vision_user_cache";
@@ -353,4 +363,125 @@ export async function apiUpload<T = any>(endpoint: string, formData: FormData): 
   invalidateApiCache("/api/animals");
   invalidateApiCache("/api/admin");
   return (await response.json()) as T;
+}
+
+/* ── Helpers tipados de Saúde, Localização, Observações Gerais e ICS (RF08 / ICS) ── */
+
+export async function createVaccineRecord(
+  animalId: string,
+  payload: {
+    name: string;
+    dose?: string | null;
+    batch?: string | null;
+    appliedAt?: string;
+    nextDueAt?: string | null;
+    notes?: string | null;
+  }
+): Promise<VaccineRecord> {
+  return apiFetch<VaccineRecord>(
+    `/api/animals/${encodeURIComponent(animalId)}/vaccines`,
+    { method: "POST", body: payload }
+  );
+}
+
+export async function deleteVaccineRecord(
+  animalId: string,
+  vaccineId: string
+): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(
+    `/api/animals/${encodeURIComponent(animalId)}/vaccines/${encodeURIComponent(vaccineId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function createDiseaseRecord(
+  animalId: string,
+  payload: {
+    name: string;
+    symptoms?: string | null;
+    treatment?: string | null;
+    status?: DiseaseStatus;
+    diagnosedAt?: string;
+    recoveredAt?: string | null;
+    notes?: string | null;
+  }
+): Promise<DiseaseRecord> {
+  return apiFetch<DiseaseRecord>(
+    `/api/animals/${encodeURIComponent(animalId)}/diseases`,
+    { method: "POST", body: payload }
+  );
+}
+
+export async function updateDiseaseRecord(
+  animalId: string,
+  diseaseId: string,
+  payload: {
+    status?: DiseaseStatus;
+    treatment?: string | null;
+    recoveredAt?: string | null;
+    notes?: string | null;
+  }
+): Promise<DiseaseRecord> {
+  return apiFetch<DiseaseRecord>(
+    `/api/animals/${encodeURIComponent(animalId)}/diseases/${encodeURIComponent(diseaseId)}`,
+    { method: "PATCH", body: payload }
+  );
+}
+
+export async function deleteDiseaseRecord(
+  animalId: string,
+  diseaseId: string
+): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(
+    `/api/animals/${encodeURIComponent(animalId)}/diseases/${encodeURIComponent(diseaseId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function listAnimalLocations(
+  animalId: string
+): Promise<AnimalLocationLog[]> {
+  return apiFetch<AnimalLocationLog[]>(
+    `/api/animals/${encodeURIComponent(animalId)}/locations`
+  );
+}
+
+export async function createObservationRecord(
+  animalId: string,
+  payload: {
+    category?: ObservationCategory;
+    title?: string | null;
+    content: string;
+    observedAt?: string;
+  }
+): Promise<AnimalObservation> {
+  return apiFetch<AnimalObservation>(
+    `/api/animals/${encodeURIComponent(animalId)}/observations`,
+    { method: "POST", body: payload }
+  );
+}
+
+export async function updateObservationRecord(
+  animalId: string,
+  observationId: string,
+  payload: {
+    category?: ObservationCategory;
+    title?: string | null;
+    content?: string;
+  }
+): Promise<AnimalObservation> {
+  return apiFetch<AnimalObservation>(
+    `/api/animals/${encodeURIComponent(animalId)}/observations/${encodeURIComponent(observationId)}`,
+    { method: "PATCH", body: payload }
+  );
+}
+
+export async function deleteObservationRecord(
+  animalId: string,
+  observationId: string
+): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(
+    `/api/animals/${encodeURIComponent(animalId)}/observations/${encodeURIComponent(observationId)}`,
+    { method: "DELETE" }
+  );
 }

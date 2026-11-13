@@ -35,8 +35,11 @@ export const metadata: Metadata = {
     "Sistema de campo para identificação RFID, captura fotográfica anatômica e acompanhamento de escore corporal (ICS) do rebanho.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,

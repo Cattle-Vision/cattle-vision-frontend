@@ -10,13 +10,34 @@
  */
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Camera, Check, Shuffle, Tag, Bluetooth, BluetoothConnected } from "lucide-react";
+import {
+  Loader2,
+  Camera,
+  Check,
+  Shuffle,
+  Tag,
+  Bluetooth,
+  BluetoothConnected,
+  Ruler,
+  MapPin,
+  FileText,
+} from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { BREEDS, SEX_OPTIONS, isValidTag, normalizeTag } from "@/lib/animal";
 import { apiFetch } from "@/lib/api";
+import { enqueueSync } from "@/lib/sync";
+import { ObservationCategory } from "@/lib/types";
 import { bluetoothRfid, BluetoothStatus } from "@/lib/bluetooth-rfid";
 import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
+
+const OBSERVATION_CATEGORY_OPTIONS: { value: ObservationCategory; label: string }[] = [
+  { value: "GERAL", label: "Geral" },
+  { value: "MANEJO", label: "Manejo" },
+  { value: "NUTRICAO", label: "Nutrição" },
+  { value: "COMPORTAMENTO", label: "Comportamento" },
+  { value: "OUTRA", label: "Outra" },
+];
 
 interface AnimalFormState {
   tag: string;
@@ -25,6 +46,10 @@ interface AnimalFormState {
   sex: string;
   weight: string;
   age: string;
+  length: string;
+  location: string;
+  observations: string;
+  observationCategory: ObservationCategory;
 }
 
 function NewAnimalForm() {
@@ -43,6 +68,10 @@ function NewAnimalForm() {
     sex: "Fêmea",
     weight: "",
     age: "",
+    length: "",
+    location: "",
+    observations: "",
+    observationCategory: "GERAL",
   });
   // Quando o operador seleciona "Outra", armazenamos o nome livre da raça
   const [customBreed, setCustomBreed] = useState("");
@@ -132,20 +161,54 @@ function NewAnimalForm() {
       toast("Informe a idade em meses.", "error");
       return;
     }
+    if (formData.length.trim() !== "" && Number(formData.length) <= 0) {
+      toast("O comprimento corporal em cm deve ser maior que zero.", "error");
+      return;
+    }
+
+    const payload = {
+      tag,
+      name: formData.name.trim(),
+      breed: effectiveBreed,
+      sex: formData.sex,
+      weight: Number(formData.weight),
+      age: Number(formData.age),
+      length: formData.length.trim() !== "" ? Number(formData.length) : null,
+      location: formData.location.trim() || null,
+      observations: formData.observations.trim() || null,
+      observationCategory: formData.observationCategory,
+    };
 
     setLoading(true);
     setGoToCamera(openCameraAfter);
 
+    // Suporte offline: enfileira cadastro no IndexedDB quando sem conexão (RNF07)
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      try {
+        await enqueueSync(
+          "/api/animals",
+          "POST",
+          payload as unknown as Record<string, unknown>,
+          false,
+          `Cadastro ${payload.name || tag}`
+        );
+        toast(
+          "Sem internet: ficha salva localmente e será sincronizada assim que houver conexão.",
+          "info"
+        );
+        router.push("/dashboard");
+        return;
+      } catch {
+        toast("Não foi possível salvar o cadastro na fila offline.", "error");
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const data = await apiFetch<any>("/api/animals", {
         method: "POST",
-        body: {
-          ...formData,
-          breed: effectiveBreed,
-          tag,
-          weight: Number(formData.weight),
-          age: Number(formData.age),
-        },
+        body: payload,
       });
 
       if (data?.id) {
@@ -159,6 +222,19 @@ function NewAnimalForm() {
         return;
       }
     } catch (err: any) {
+      // Se caiu a conexão durante o envio, persiste na fila offline
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await enqueueSync(
+          "/api/animals",
+          "POST",
+          payload as unknown as Record<string, unknown>,
+          false,
+          `Cadastro ${payload.name || tag}`
+        );
+        toast("Conexão perdida: ficha enfileirada no modo offline.", "info");
+        router.push("/dashboard");
+        return;
+      }
       // Se já existia e o backend concedeu guarda compartilhada:
       if (err?.data?.sharedGranted && err?.data?.id) {
         toast(err.message || "Animal já existente. Guarda Compartilhada ativada!", "info");
@@ -394,8 +470,8 @@ function NewAnimalForm() {
               </div>
             </div>
 
-            {/* Peso e Idade */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Peso, Idade e Comprimento Corporal */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="field-label" htmlFor="weight-field">
                   Peso estimado (kg) <span className="text-red-500">*</span>
@@ -430,6 +506,79 @@ function NewAnimalForm() {
                   inputMode="numeric"
                 />
               </div>
+
+              <div>
+                <label className="field-label inline-flex items-center gap-1" htmlFor="length-field">
+                  <Ruler className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Comprimento (cm)</span>
+                </label>
+                <input
+                  id="length-field"
+                  type="number"
+                  value={formData.length}
+                  onChange={(e) => setField("length", e.target.value)}
+                  className="field-input tabular-nums"
+                  placeholder="Ex: 165"
+                  min="1"
+                  step="0.5"
+                  inputMode="decimal"
+                />
+              </div>
+            </div>
+
+            {/* Localização atual */}
+            <div>
+              <label className="field-label inline-flex items-center gap-1.5" htmlFor="location-field">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Localização atual (piquete, pasto ou curral)</span>
+              </label>
+              <input
+                id="location-field"
+                type="text"
+                value={formData.location}
+                onChange={(e) => setField("location", e.target.value)}
+                className="field-input text-sm"
+                placeholder="Ex: Pasto Sul, Piquete 04, Curral de Manejo"
+                autoComplete="off"
+              />
+              <p className="text-[11px] text-theme-secondary mt-1">
+                Registra o ponto inicial no histórico de movimentações do animal (RF08).
+              </p>
+            </div>
+
+            {/* Observação Geral Inicial */}
+            <div className="p-3.5 rounded-lg bg-theme-surface-2/60 border border-theme space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label
+                  className="field-label !mb-0 inline-flex items-center gap-1.5"
+                  htmlFor="observations-field"
+                >
+                  <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Observação geral inicial</span>
+                </label>
+                <select
+                  aria-label="Categoria da observação"
+                  value={formData.observationCategory}
+                  onChange={(e) =>
+                    setField("observationCategory", e.target.value as ObservationCategory)
+                  }
+                  className="field-input !w-auto !py-1 !px-2.5 text-xs font-medium"
+                >
+                  {OBSERVATION_CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <textarea
+                id="observations-field"
+                rows={2}
+                value={formData.observations}
+                onChange={(e) => setField("observations", e.target.value)}
+                className="field-input text-sm resize-y min-h-[64px]"
+                placeholder="Opcional: histórico de compra, comportamento no lote, dieta ou anotações gerais…"
+              />
             </div>
 
             {/* Botões de Ação */}
