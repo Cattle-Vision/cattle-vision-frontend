@@ -10,7 +10,6 @@ import Link from 'next/link';
 import {
   Download,
   Users,
-  ImageIcon,
   Loader2,
   Search,
   Activity,
@@ -33,6 +32,7 @@ import {
   invalidateApiCache,
   getApiUrl,
   getStoredToken,
+  recalibratePhotosSequentially,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/Toast';
@@ -80,6 +80,10 @@ export default function AdminPage() {
   );
   const [downloading, setDownloading] = useState(false);
   const [recalibrating, setRecalibrating] = useState(false);
+  const [recalibratingProgress, setRecalibratingProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
 
   const [query, setQuery] = useState('');
   const [onlyWithPhotos, setOnlyWithPhotos] = useState(false);
@@ -213,28 +217,38 @@ export default function AdminPage() {
 
   const handleRecalibrateScores = async () => {
     if (recalibrating) return;
+    const photoIds = animals.flatMap((a) => (a.photos ?? []).map((p) => p.id));
+    if (photoIds.length === 0) {
+      toast('Nenhuma foto encontrada para recalibração.', 'info');
+      return;
+    }
+
     const ok = await confirm({
       title: 'Recalcular Confiança do Dataset',
-      message:
-        'Deseja recalcular a confiança de todas as fotos do banco de dados com a IA calibrada? Isso atualizará permanentemente os registros.',
-      confirmText: 'Recalcular Todas',
+      message: `Deseja recalcular a confiança de ${photoIds.length} foto(s) do banco de dados, uma por vez, com a IA calibrada?`,
+      confirmText: 'Recalcular 1 por vez',
       variant: 'primary',
     });
     if (!ok) return;
 
     setRecalibrating(true);
+    setRecalibratingProgress({ current: 0, total: photoIds.length });
     try {
-      const data = await apiFetch<any>('/api/admin/recalibrate', { method: 'POST' });
+      const summary = await recalibratePhotosSequentially(photoIds, ({ current, total }) => {
+        setRecalibratingProgress({ current, total });
+      });
       toast(
-        data?.message || `${data?.updatedCount ?? 0} fotos recalculadas com sucesso!`,
-        'success'
+        `${summary.updatedCount} de ${summary.totalCount} fotos recalculadas sequencialmente!`,
+        summary.failedCount > 0 ? 'info' : 'success'
       );
       invalidateApiCache('/api/animals');
+      invalidateApiCache('/api/admin/animals');
       await loadData(true);
     } catch (err: any) {
       toast(err?.message || 'Erro ao recalcular confiança da IA', 'error');
     } finally {
       setRecalibrating(false);
+      setRecalibratingProgress(null);
     }
   };
 
@@ -365,50 +379,50 @@ export default function AdminPage() {
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div className="card p-3 sm:p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-theme-muted flex items-center gap-1">
-              <Database className="w-3.5 h-3.5 text-emerald-500" /> Total Geral
+          <div className="card p-3.5 sm:p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
+              Total Geral
             </p>
-            <p className="text-xl sm:text-2xl font-extrabold text-theme-primary mt-1">
+            <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
               {stats.totalAnimals}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-theme-secondary mt-0.5">
+            <p className="text-[11px] text-theme-secondary mt-0.5">
               Bovinos catalogados
             </p>
           </div>
 
-          <div className="card p-3 sm:p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <ImageIcon className="w-3.5 h-3.5" /> Fotos Avaliadas
+          <div className="card p-3.5 sm:p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+              Fotos Avaliadas
             </p>
-            <p className="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+            <p className="text-xl sm:text-2xl font-bold text-emerald-700 dark:text-emerald-400 mt-1 tabular-nums">
               {stats.totalPhotos}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-theme-secondary mt-0.5">
+            <p className="text-[11px] text-theme-secondary mt-0.5">
               Fotos anatômicas
             </p>
           </div>
 
-          <div className="card p-3 sm:p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-theme-muted flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-blue-500" /> Operadores
+          <div className="card p-3.5 sm:p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
+              Operadores
             </p>
-            <p className="text-xl sm:text-2xl font-extrabold text-theme-primary mt-1">
+            <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
               {stats.totalUsers}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-theme-secondary mt-0.5">
+            <p className="text-[11px] text-theme-secondary mt-0.5">
               {stats.totalAdmins} com perfil admin
             </p>
           </div>
 
-          <div className="card p-3 sm:p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-theme-muted flex items-center gap-1">
-              <Activity className="w-3.5 h-3.5 text-amber-500" /> Média Global
+          <div className="card p-3.5 sm:p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
+              Média Global
             </p>
-            <p className="text-xl sm:text-2xl font-extrabold text-theme-primary mt-1">
+            <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
               {stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
             </p>
-            <p className="text-[10px] sm:text-[11px] text-theme-secondary mt-0.5">
+            <p className="text-[11px] text-theme-secondary mt-0.5">
               Todas as fotos do dataset
             </p>
           </div>
@@ -476,8 +490,12 @@ export default function AdminPage() {
                     ) : (
                       <Activity className="w-3.5 h-3.5 text-emerald-500" />
                     )}
-                    <span className="hidden sm:inline">
-                      {recalibrating ? 'Recalculando…' : 'Recalcular Confiança'}
+                    <span className="tabular-nums">
+                      {recalibrating
+                        ? recalibratingProgress
+                          ? `${recalibratingProgress.current}/${recalibratingProgress.total}…`
+                          : 'Recalculando…'
+                        : 'Recalcular Confiança'}
                     </span>
                   </button>
                 )}

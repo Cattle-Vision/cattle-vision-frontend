@@ -446,6 +446,89 @@ export async function listAnimalLocations(
   );
 }
 
+export async function createAnimalLocationLog(
+  animalId: string,
+  payload: {
+    location: string;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    reason?: string | null;
+  }
+): Promise<AnimalLocationLog> {
+  return apiFetch<AnimalLocationLog>(
+    `/api/animals/${encodeURIComponent(animalId)}/locations`,
+    { method: "POST", body: payload }
+  );
+}
+
+export interface SequentialRecalibrationResult {
+  updatedCount: number;
+  failedCount: number;
+  totalCount: number;
+  results: Array<{
+    id: string;
+    newScore: number;
+    photo?: any;
+  }>;
+}
+
+/**
+ * Recalibra uma lista de fotos executando `POST /api/photos/:id/recalibrate` estritamente
+ * uma imagem por vez em série, garantindo 100% de paridade e zero travamentos por lote.
+ */
+export async function recalibratePhotosSequentially(
+  photoIds: string[],
+  onProgress?: (progress: {
+    current: number;
+    total: number;
+    photoId: string;
+    newScore: number | null;
+  }) => void
+): Promise<SequentialRecalibrationResult> {
+  const uniqueIds = Array.from(new Set(photoIds.filter(Boolean)));
+  const results: SequentialRecalibrationResult["results"] = [];
+  let failedCount = 0;
+
+  for (let i = 0; i < uniqueIds.length; i++) {
+    const photoId = uniqueIds[i];
+    try {
+      const res = await apiFetch<any>(
+        `/api/photos/${encodeURIComponent(photoId)}/recalibrate`,
+        { method: "POST" }
+      );
+      const nextScore =
+        typeof res?.newScore === "number"
+          ? res.newScore
+          : typeof res?.score === "number"
+          ? res.score
+          : 0;
+      results.push({ id: photoId, newScore: nextScore, photo: res?.photo });
+      onProgress?.({
+        current: i + 1,
+        total: uniqueIds.length,
+        photoId,
+        newScore: nextScore,
+      });
+    } catch {
+      failedCount++;
+      onProgress?.({
+        current: i + 1,
+        total: uniqueIds.length,
+        photoId,
+        newScore: null,
+      });
+    }
+  }
+
+  return {
+    updatedCount: results.length,
+    failedCount,
+    totalCount: uniqueIds.length,
+    results,
+  };
+}
+
 export async function createObservationRecord(
   animalId: string,
   payload: {

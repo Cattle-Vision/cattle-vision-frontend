@@ -18,9 +18,6 @@ import {
   Tag,
   Bluetooth,
   BluetoothConnected,
-  Ruler,
-  MapPin,
-  FileText,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { BREEDS, SEX_OPTIONS, isValidTag, normalizeTag } from "@/lib/animal";
@@ -30,6 +27,7 @@ import { ObservationCategory } from "@/lib/types";
 import { bluetoothRfid, BluetoothStatus } from "@/lib/bluetooth-rfid";
 import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
+import FarmLocationFields from "@/components/FarmLocationFields";
 
 const OBSERVATION_CATEGORY_OPTIONS: { value: ObservationCategory; label: string }[] = [
   { value: "GERAL", label: "Geral" },
@@ -48,6 +46,9 @@ interface AnimalFormState {
   age: string;
   length: string;
   location: string;
+  locationAddress: string;
+  latitude: string;
+  longitude: string;
   observations: string;
   observationCategory: ObservationCategory;
 }
@@ -70,6 +71,9 @@ function NewAnimalForm() {
     age: "",
     length: "",
     location: "",
+    locationAddress: "",
+    latitude: "",
+    longitude: "",
     observations: "",
     observationCategory: "GERAL",
   });
@@ -175,6 +179,9 @@ function NewAnimalForm() {
       age: Number(formData.age),
       length: formData.length.trim() !== "" ? Number(formData.length) : null,
       location: formData.location.trim() || null,
+      locationAddress: formData.locationAddress.trim() || null,
+      latitude: formData.latitude.trim() !== "" ? Number(formData.latitude.replace(",", ".")) : null,
+      longitude: formData.longitude.trim() !== "" ? Number(formData.longitude.replace(",", ".")) : null,
       observations: formData.observations.trim() || null,
       observationCategory: formData.observationCategory,
     };
@@ -508,9 +515,8 @@ function NewAnimalForm() {
               </div>
 
               <div>
-                <label className="field-label inline-flex items-center gap-1" htmlFor="length-field">
-                  <Ruler className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Comprimento (cm)</span>
+                <label className="field-label" htmlFor="length-field">
+                  Comprimento (cm)
                 </label>
                 <input
                   id="length-field"
@@ -526,35 +532,22 @@ function NewAnimalForm() {
               </div>
             </div>
 
-            {/* Localização atual */}
-            <div>
-              <label className="field-label inline-flex items-center gap-1.5" htmlFor="location-field">
-                <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Localização atual (piquete, pasto ou curral)</span>
-              </label>
-              <input
-                id="location-field"
-                type="text"
-                value={formData.location}
-                onChange={(e) => setField("location", e.target.value)}
-                className="field-input text-sm"
-                placeholder="Ex: Pasto Sul, Piquete 04, Curral de Manejo"
-                autoComplete="off"
-              />
-              <p className="text-[11px] text-theme-secondary mt-1">
-                Registra o ponto inicial no histórico de movimentações do animal (RF08).
-              </p>
-            </div>
+            {/* Localização da Fazenda e GPS */}
+            <FarmLocationFields
+              value={{
+                location: formData.location,
+                locationAddress: formData.locationAddress,
+                latitude: formData.latitude,
+                longitude: formData.longitude,
+              }}
+              onChange={(loc) => setFormData((prev) => ({ ...prev, ...loc }))}
+            />
 
             {/* Observação Geral Inicial */}
             <div className="p-3.5 rounded-lg bg-theme-surface-2/60 border border-theme space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <label
-                  className="field-label !mb-0 inline-flex items-center gap-1.5"
-                  htmlFor="observations-field"
-                >
-                  <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Observação geral inicial</span>
+                <label className="field-label !mb-0" htmlFor="observations-field">
+                  Observação geral inicial
                 </label>
                 <select
                   aria-label="Categoria da observação"

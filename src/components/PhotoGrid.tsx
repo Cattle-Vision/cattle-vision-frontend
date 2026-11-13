@@ -3,7 +3,7 @@
 /**
  * PhotoGrid — Grade de fotos responsiva com metadados de IA e proxy autenticado (`src/components/PhotoGrid.tsx`).
  */
-import { Trash2, ImageOff, ZoomIn, Activity, Calendar, Camera } from 'lucide-react';
+import { Trash2, ImageOff, Camera } from 'lucide-react';
 import { Photo, getPhotoUrl } from '@/lib/types';
 import { AsyncPhoto } from '@/components/AsyncPhoto';
 
@@ -63,42 +63,29 @@ function PhotoCard({
         fallbackIcon={<ImageOff className="w-7 h-7 text-theme-muted" />}
       />
 
-      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
 
       {hasScore && (
         <div
           title={`Enquadramento anatômico (YOLO): ${Math.round(photo.score as number)}%`}
-          className={`absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tabular-nums backdrop-blur-md shadow-xs pointer-events-none ${
+          className={`absolute top-2.5 left-2.5 z-10 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold tabular-nums pointer-events-none ${
             isHighScore
               ? 'bg-emerald-600/90 text-white'
               : 'bg-amber-600/90 text-white'
           }`}
         >
-          <Activity className="w-3 h-3" />
           Enq. {Math.round(photo.score as number)}%
         </div>
       )}
 
-      <div
-        title={
-          icsCalculated
-            ? `ICS calculado: ${photo.ics?.score?.toFixed(1)}`
-            : 'Módulo de IA para ICS ainda em desenvolvimento'
-        }
-        className={`absolute bottom-8 left-2.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold backdrop-blur-md pointer-events-none ${
-          icsCalculated
-            ? 'bg-emerald-600/90 text-white'
-            : 'bg-black/65 text-amber-300 border border-amber-400/30'
-        }`}
-      >
-        {icsCalculated ? `ICS ${photo.ics?.score?.toFixed(1)}` : 'ICS: Em dev'}
-      </div>
-
-      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-        <div className="bg-black/65 text-white p-2.5 rounded-full backdrop-blur-sm shadow-lg">
-          <ZoomIn className="w-5 h-5" />
+      {icsCalculated && (
+        <div
+          title={`ICS calculado: ${photo.ics?.score?.toFixed(1)}`}
+          className="absolute bottom-8 left-2.5 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold pointer-events-none bg-emerald-600/90 text-white"
+        >
+          ICS {photo.ics?.score?.toFixed(1)}
         </div>
-      </div>
+      )}
 
       {onDelete && (
         <button
@@ -108,19 +95,18 @@ function PhotoCard({
             onDelete(photo.id);
           }}
           aria-label="Apagar foto"
-          className="absolute top-2.5 right-2.5 z-10 bg-black/60 hover:bg-red-600 active:bg-red-700 text-white p-2 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 shadow-lg backdrop-blur-sm cursor-pointer active:scale-90"
+          className="absolute top-2.5 right-2.5 z-10 bg-black/65 hover:bg-red-600 active:bg-red-700 text-white p-1.5 rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-200 cursor-pointer active:scale-90"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       )}
 
       <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-white pointer-events-none">
         <span className="text-xs font-bold tracking-tight">
-          Captura #{index + 1}
+          #{index + 1}
         </span>
         {formattedDate && (
-          <span className="text-[10px] text-white/80 flex items-center gap-1 font-medium">
-            <Calendar className="w-2.5 h-2.5" />
+          <span className="text-[10px] text-white/80 font-medium tabular-nums">
             {formattedDate}
           </span>
         )}

@@ -10,22 +10,18 @@
  *   os campos permanecem explicitamente marcados como "Em desenvolvimento".
  * - Separa claramente a confiança de enquadramento (YOLO, 0–100%) do futuro índice ICS.
  */
-import { Activity, AlertTriangle, CheckCircle2, Clock, Eye, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Eye } from "lucide-react";
 import { Animal, Photo } from "@/lib/types";
 
 interface AnimalIcsPanelProps {
   animal: Animal;
   photos: Photo[];
-  recalibrating: boolean;
-  onRecalibrate: () => void;
   onSelectPhoto?: (index: number) => void;
 }
 
 export default function AnimalIcsPanel({
   animal,
   photos,
-  recalibrating,
-  onRecalibrate,
   onSelectPhoto,
 }: AnimalIcsPanelProps) {
   const ics = animal.ics;
@@ -157,19 +153,6 @@ export default function AnimalIcsPanel({
             <span className="text-xs font-bold text-theme-primary">
               Histórico de Avaliações ({photos.length})
             </span>
-            <button
-              type="button"
-              onClick={onRecalibrate}
-              disabled={recalibrating}
-              className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 disabled:opacity-50"
-            >
-              {recalibrating ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Activity className="w-3 h-3" />
-              )}
-              <span>{recalibrating ? "Recalculando…" : "Recalcular enquadramento"}</span>
-            </button>
           </div>
 
           <div className="overflow-x-auto">

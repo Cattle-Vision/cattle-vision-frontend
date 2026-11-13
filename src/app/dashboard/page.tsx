@@ -17,15 +17,9 @@ import {
   Camera,
   Search,
   Activity,
-  Scale,
-  Calendar,
-  Images,
   ChevronRight,
   Loader2,
   Layers,
-  CheckCircle2,
-  ShieldCheck,
-  Users,
   Copy,
   Check,
   LayoutGrid,
@@ -33,10 +27,19 @@ import {
   RefreshCw,
   MapPin,
   AlertTriangle,
+  Users,
+  Images,
+  ShieldCheck,
 } from "lucide-react";
 import { Animal, getPhotoUrl } from "@/lib/types";
 import { AsyncPhoto } from "@/components/AsyncPhoto";
-import { apiFetch, apiFetchCached, getApiCacheSnapshot, invalidateApiCache } from "@/lib/api";
+import {
+  apiFetch,
+  apiFetchCached,
+  getApiCacheSnapshot,
+  invalidateApiCache,
+  recalibratePhotosSequentially,
+} from "@/lib/api";
 import { getHerdSnapshot, saveHerdSnapshot } from "@/lib/sync";
 import { useAuth } from "@/lib/auth-context";
 import AppHeader from "@/components/AppHeader";
@@ -130,9 +133,8 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
           {bestScore !== null && (
             <div
               title={`Enquadramento da foto mais recente: ${bestScore}%`}
-              className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-md bg-black/70 text-emerald-300 backdrop-blur-sm"
+              className="absolute bottom-2 left-2 inline-flex items-center text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-md bg-black/75 text-emerald-300"
             >
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               Última: {bestScore}%
             </div>
           )}
@@ -169,22 +171,16 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-theme-secondary tabular-nums">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-theme-secondary tabular-nums">
             <span>{animal.sex}</span>
             <span className="text-theme-muted">·</span>
-            <span className="inline-flex items-center gap-1">
-              <Scale className="w-3.5 h-3.5 text-theme-muted" />
-              {animal.weight} kg
-            </span>
+            <span>{animal.weight} kg</span>
             <span className="text-theme-muted">·</span>
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-theme-muted" />
-              {animal.age}m
-            </span>
+            <span>{animal.age}m</span>
             {animal.location && (
               <>
                 <span className="text-theme-muted">·</span>
-                <span className="inline-flex items-center gap-1 truncate max-w-[130px]" title={animal.location}>
+                <span className="inline-flex items-center gap-1 truncate max-w-[140px]" title={animal.locationAddress || animal.location}>
                   <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span className="truncate">{animal.location}</span>
                 </span>
@@ -306,6 +302,10 @@ export default function DashboardPage() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [recalibratingHerd, setRecalibratingHerd] = useState(false);
+  const [recalibratingProgress, setRecalibratingProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [showIcsNotice, setShowIcsNotice] = useState(false);
   const [usingOfflineCache, setUsingOfflineCache] = useState(false);
   const router = useRouter();
@@ -364,7 +364,7 @@ export default function DashboardPage() {
     const ok = await confirm({
       title: "Recalcular Enquadramento",
       message:
-        "Deseja reprocessar a qualidade de enquadramento de todas as fotos do rebanho?",
+        "Deseja reprocessar a qualidade de enquadramento das fotos do rebanho (1 foto por vez)?",
       confirmText: "Recalcular",
       variant: "primary",
     });
@@ -372,15 +372,30 @@ export default function DashboardPage() {
 
     setRecalibratingHerd(true);
     try {
-      const data = await apiFetch<any>("/api/animals/recalibrate", { method: "POST" });
-      toast(data?.message || `${data?.updatedCount ?? 0} fotos recalculadas.`, "success");
-      invalidateApiCache("/api/animals/");
+      const fullList = await apiFetch<Animal[]>("/api/animals");
+      const photoIds = (fullList || []).flatMap((a) => (a.photos ?? []).map((p) => p.id));
+      if (photoIds.length === 0) {
+        toast("Nenhuma foto encontrada para recalibração.", "info");
+        return;
+      }
+
+      setRecalibratingProgress({ current: 0, total: photoIds.length });
+      const summary = await recalibratePhotosSequentially(photoIds, ({ current, total }) => {
+        setRecalibratingProgress({ current, total });
+      });
+
+      toast(
+        `${summary.updatedCount} de ${summary.totalCount} fotos recalculadas sequencialmente.`,
+        summary.failedCount > 0 ? "info" : "success"
+      );
+      invalidateApiCache("/api/animals");
       invalidateApiCache("/api/admin/animals");
       await loadAnimals(true);
     } catch (err: any) {
       toast(err?.message || "Erro ao recalcular enquadramento", "error");
     } finally {
       setRecalibratingHerd(false);
+      setRecalibratingProgress(null);
     }
   };
 
@@ -426,6 +441,7 @@ export default function DashboardPage() {
         a.tag.toUpperCase().includes(q) ||
         (a.name && a.name.toUpperCase().includes(q)) ||
         (a.location && a.location.toUpperCase().includes(q)) ||
+        (a.locationAddress && a.locationAddress.toUpperCase().includes(q)) ||
         a.breed.toUpperCase().includes(q)
       );
     });
@@ -607,7 +623,13 @@ export default function DashboardPage() {
                     ) : (
                       <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     )}
-                    <span>{recalibratingHerd ? "Recalculando…" : "Recalcular scores"}</span>
+                    <span>
+                      {recalibratingHerd
+                        ? recalibratingProgress
+                          ? `Recalculando ${recalibratingProgress.current}/${recalibratingProgress.total}…`
+                          : "Preparando…"
+                        : "Recalcular scores"}
+                    </span>
                   </button>
                 )}
               </div>

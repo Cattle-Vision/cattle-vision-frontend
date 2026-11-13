@@ -89,9 +89,12 @@ export interface AnimalLocationLog {
   id: string;
   animalId: string;
   location: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   reason?: string | null;
   movedAt: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export type ObservationCategory =
@@ -155,6 +158,9 @@ export interface Animal {
   age: number;
   length?: number | null;
   location?: string | null;
+  locationAddress?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   observations?: string | null;
   ownerId: number;
   ics?: IcsData | null;
