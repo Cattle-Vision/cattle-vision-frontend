@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { AnimalWithOwner, getPhotoUrl } from '@/lib/types';
+import { AsyncPhoto } from '@/components/AsyncPhoto';
 import {
   apiFetch,
   apiFetchCached,
@@ -507,12 +508,11 @@ export default function AdminPage() {
                     >
                       <div className="w-20 h-20 rounded-lg overflow-hidden bg-theme-surface-2 border border-theme shrink-0 relative flex items-center justify-center">
                         {photoUrl ? (
-                          <img
+                          <AsyncPhoto
                             src={photoUrl}
                             alt={animal.tag}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                            decoding="async"
+                            compact
+                            fallbackIcon={<Camera className="w-6 h-6 text-theme-muted opacity-40" />}
                           />
                         ) : (
                           <Camera className="w-6 h-6 text-theme-muted opacity-40" />

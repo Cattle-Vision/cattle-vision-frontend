@@ -8,7 +8,6 @@
 import Link from "next/link";
 import {
   Camera,
-  Activity,
   ArrowRight,
   ScanLine,
   WifiOff,
@@ -20,6 +19,7 @@ import {
 import ThemeToggle from "@/components/ThemeToggle";
 import { LandingAuthCheck } from "@/components/LandingAuthCheck";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { BrandMark } from "@/components/BrandMark";
 
 export default function LandingPage() {
   return (
@@ -30,9 +30,7 @@ export default function LandingPage() {
       <header className="glass-header sticky top-0 z-30 border-b border-theme bg-theme-surface/92 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-15 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white shrink-0">
-              <Activity className="w-4.5 h-4.5 stroke-[2.2]" />
-            </div>
+            <BrandMark className="w-8 h-8 sm:w-9 sm:h-9" />
             <div className="min-w-0">
               <span className="font-bold text-base sm:text-[17px] tracking-tight text-theme-primary truncate block leading-none">
                 Cattle<span className="text-emerald-600 dark:text-emerald-400">Vision</span>

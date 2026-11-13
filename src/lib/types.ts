@@ -6,10 +6,11 @@
 import { getApiUrl } from "./api";
 
 export interface User {
-  id: number;
+  id: number | string;
   name: string;
   email: string;
   role: "ADMIN" | "USER" | string;
+  createdAt?: string;
 }
 
 export interface IcsData {

@@ -19,12 +19,23 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
   const [localPhotos, setLocalPhotos] = useState<Photo[]>(photos);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [recalibrating, setRecalibrating] = useState(false);
+  const [imgStatus, setImgStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     setLocalPhotos(photos);
   }, [photos]);
+
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el && el.complete) {
+      setImgStatus(el.naturalWidth > 0 ? 'loaded' : 'error');
+      return;
+    }
+    setImgStatus('loading');
+  }, [currentIndex, photos]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -165,14 +176,34 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
       </div>
 
       {/* Imagem principal */}
-      <div className="w-full h-full flex items-center justify-center p-4 sm:p-10">
-        <img
-          key={currentPhoto.id}
-          src={url}
-          alt={`Foto ${currentIndex + 1}`}
-          className="max-w-full max-h-full object-contain rounded-lg animate-scale-in select-none shadow-2xl"
-          draggable={false}
-        />
+      <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-10">
+        {imgStatus === 'loading' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
+            <Loader2 className="w-7 h-7 animate-spin text-emerald-400" />
+            <span className="text-xs font-medium text-white/80">
+              Carregando imagem em alta resolução…
+            </span>
+          </div>
+        )}
+
+        {imgStatus === 'error' ? (
+          <div className="flex flex-col items-center gap-2 text-white/70">
+            <span className="text-sm font-medium">Não foi possível carregar esta imagem.</span>
+          </div>
+        ) : (
+          <img
+            ref={imgRef}
+            key={currentPhoto.id}
+            src={url}
+            alt={`Foto ${currentIndex + 1}`}
+            onLoad={() => setImgStatus('loaded')}
+            onError={() => setImgStatus('error')}
+            className={`max-w-full max-h-full object-contain rounded-lg animate-scale-in select-none shadow-2xl transition-opacity duration-200 ${
+              imgStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
+            }`}
+            draggable={false}
+          />
+        )}
       </div>
 
       {/* Botão anterior */}

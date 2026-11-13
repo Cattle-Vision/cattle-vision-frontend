@@ -9,13 +9,12 @@ import {
   LayoutGrid,
   PlusCircle,
   ShieldCheck,
-  LogOut,
-  Activity,
+  User as UserIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useToast } from "@/components/ui/Toast";
 import ThemeToggle from "@/components/ThemeToggle";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { BrandMark } from "@/components/BrandMark";
 
 export interface AppHeaderProps {
   title?: React.ReactNode;
@@ -26,6 +25,13 @@ export interface AppHeaderProps {
   actions?: React.ReactNode;
 }
 
+/**
+ * Cabeçalho padronizado do sistema.
+ * - Mantém o símbolo canônico `BrandMark` (sincronizado ao ícone PWA e favicon).
+ * - Em telas menores (`< md`), omite os links principais já presentes na `MobileNav`
+ *   inferior para evitar redundância visual.
+ * - Centraliza o acesso ao perfil do operador, senha, tema e saída em `/profile`.
+ */
 export function AppHeader({
   title,
   subtitle,
@@ -36,8 +42,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAdmin, logout } = useAuth();
-  const { confirm } = useToast();
+  const { user, isAdmin } = useAuth();
 
   const handleBack = () => {
     if (onBack) {
@@ -49,23 +54,20 @@ export function AppHeader({
     }
   };
 
-  const handleLogout = async () => {
-    const ok = await confirm({
-      title: "Desconectar Sessão",
-      message: "Deseja realmente sair da sua conta no CattleVision?",
-      confirmText: "Sair da Conta",
-      cancelText: "Continuar Logado",
-      variant: "danger",
-    });
-    if (ok) {
-      logout();
-    }
-  };
+  const firstName = user?.name?.trim().split(/\s+/)[0] || "Perfil";
+  const initials = (user?.name || "OP")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || "")
+    .join("");
+
+  const isProfileActive = pathname.startsWith("/profile");
 
   return (
     <header className="glass-header sticky top-0 z-30 border-b border-theme bg-theme-surface/92 backdrop-blur-md">
       <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-15 flex items-center justify-between gap-3">
-        {/* Lado Esquerdo: Identidade / Botão Voltar */}
+        {/* Lado Esquerdo: Identidade canônica ou Botão Voltar */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           {showBack ? (
             <button
@@ -79,10 +81,10 @@ export function AppHeader({
           ) : (
             <Link
               href="/dashboard"
-              className="w-9 h-9 rounded-lg bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white shrink-0 hover:bg-emerald-700 dark:hover:bg-emerald-400 transition active:scale-95"
+              className="inline-flex items-center shrink-0 rounded-lg active:scale-95 transition"
               aria-label="Ir para o painel principal"
             >
-              <Activity className="w-4.5 h-4.5 stroke-[2.2]" />
+              <BrandMark className="w-9 h-9" />
             </Link>
           )}
 
@@ -107,7 +109,7 @@ export function AppHeader({
           </div>
         </div>
 
-        {/* Centro (Desktop): Navegação Principal */}
+        {/* Centro (Desktop apenas — no mobile a navegação principal fica na MobileNav inferior) */}
         <nav aria-label="Navegação principal" className="hidden md:flex items-center gap-1">
           <Link
             href="/dashboard"
@@ -160,15 +162,9 @@ export function AppHeader({
           )}
         </nav>
 
-        {/* Lado Direito: Operador, PWA, Tema e Sair */}
+        {/* Lado Direito: Ações contextuais da página, tema (desktop), instalação PWA e Perfil do Operador */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {actions}
-
-          {user?.name && (
-            <span className="hidden lg:inline-flex items-center px-2.5 py-1 rounded-md bg-theme-surface-2 border border-theme text-[11px] font-medium text-theme-secondary max-w-[140px] truncate">
-              {user.name}
-            </span>
-          )}
 
           <div className="hidden sm:block">
             <PwaInstallPrompt variant="button" />
@@ -177,17 +173,25 @@ export function AppHeader({
             <PwaInstallPrompt variant="icon" />
           </div>
 
-          <ThemeToggle />
+          <div className="hidden sm:block">
+            <ThemeToggle />
+          </div>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            title={`Sair da conta (${user?.name || "Operador"})`}
-            aria-label="Sair da conta"
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-theme-secondary hover:text-red-600 dark:hover:text-red-400 bg-theme-surface-2 hover:bg-red-500/10 border border-theme hover:border-red-500/30 active:scale-95 transition touch-manipulation shrink-0"
+          <Link
+            href="/profile"
+            aria-label={`Abrir página de perfil (${user?.name || "Operador"})`}
+            title={`Perfil e configurações (${user?.name || "Operador"})`}
+            className={`inline-flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-lg border text-xs font-semibold transition active:scale-95 touch-manipulation shrink-0 ${
+              isProfileActive
+                ? "bg-emerald-500/12 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
+                : "bg-theme-surface-2 border-theme text-theme-primary hover:border-emerald-500/40"
+            }`}
           >
-            <LogOut className="w-4 h-4" />
-          </button>
+            <span className="w-6 h-6 rounded-md bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+              {initials || <UserIcon className="w-3.5 h-3.5" />}
+            </span>
+            <span className="hidden sm:inline max-w-[110px] truncate">{firstName}</span>
+          </Link>
         </div>
       </div>
     </header>

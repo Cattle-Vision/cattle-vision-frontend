@@ -33,6 +33,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Animal, getPhotoUrl } from "@/lib/types";
+import { AsyncPhoto } from "@/components/AsyncPhoto";
 import { apiFetch, apiFetchCached, getApiCacheSnapshot, invalidateApiCache } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import AppHeader from "@/components/AppHeader";
@@ -64,7 +65,6 @@ function CardSkeleton() {
 function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?: number }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  const [imgErr, setImgErr] = useState(false);
 
   const lastPhoto = animal.photos?.[0];
   const photoUrl = lastPhoto ? getPhotoUrl(lastPhoto.id, 480) : null;
@@ -96,14 +96,13 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
         aria-label={`Abrir ficha de ${displayName}`}
       >
         <div className="aspect-[16/10] relative overflow-hidden bg-theme-surface-2">
-          {photoUrl && !imgErr ? (
-            <img
+          {photoUrl ? (
+            <AsyncPhoto
               src={photoUrl}
               alt={displayName}
-              loading="lazy"
-              decoding="async"
+              loadingLabel="Carregando foto do banco…"
               className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
-              onError={() => setImgErr(true)}
+              fallbackIcon={<Layers className="w-7 h-7 opacity-40 stroke-[1.5]" />}
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-theme-surface-2 text-theme-muted">
@@ -206,7 +205,6 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
 }
 
 function AnimalListRow({ animal, currentUserId }: { animal: Animal; currentUserId?: number }) {
-  const [imgErr, setImgErr] = useState(false);
   const lastPhoto = animal.photos?.[0];
   const thumbUrl = lastPhoto ? getPhotoUrl(lastPhoto.id, 240) : null;
   const displayName = animal.name?.trim() || "Sem apelido";
@@ -222,14 +220,12 @@ function AnimalListRow({ animal, currentUserId }: { animal: Animal; currentUserI
         href={`/animal/${animal.id}`}
         className="w-20 h-14 rounded-lg overflow-hidden bg-theme-surface-2 shrink-0 flex items-center justify-center border border-theme"
       >
-        {thumbUrl && !imgErr ? (
-          <img
+        {thumbUrl ? (
+          <AsyncPhoto
             src={thumbUrl}
             alt={displayName}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover"
-            onError={() => setImgErr(true)}
+            compact
+            fallbackIcon={<Layers className="w-5 h-5 text-theme-muted opacity-40" />}
           />
         ) : (
           <Layers className="w-5 h-5 text-theme-muted opacity-40" />
@@ -423,15 +419,6 @@ export default function DashboardPage() {
           loading
             ? "Carregando…"
             : `${stats.totalAnimals} ${stats.totalAnimals === 1 ? "animal" : "animais"} · ${stats.totalPhotos} fotos`
-        }
-        actions={
-          <Link
-            href="/animal/new"
-            className="hidden sm:inline-flex btn-primary py-1.5 px-3 min-h-[36px] text-xs font-semibold"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Novo animal
-          </Link>
         }
       />
 

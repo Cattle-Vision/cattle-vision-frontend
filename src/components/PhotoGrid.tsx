@@ -3,9 +3,9 @@
 /**
  * PhotoGrid — Grade de fotos responsiva com metadados de IA e proxy autenticado (`src/components/PhotoGrid.tsx`).
  */
-import { useState } from 'react';
 import { Trash2, ImageOff, ZoomIn, Activity, Calendar, Camera } from 'lucide-react';
 import { Photo, getPhotoUrl } from '@/lib/types';
+import { AsyncPhoto } from '@/components/AsyncPhoto';
 
 interface PhotoGridProps {
   photos: Photo[];
@@ -24,8 +24,6 @@ function PhotoCard({
   onSelect: (photo: Photo, index: number) => void;
   index: number;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [errored, setErrored] = useState(false);
   // Solicita miniatura redimensionada (480px) para carregamento rápido na grade
   const url = getPhotoUrl(photo.id, 480);
 
@@ -55,30 +53,13 @@ function PhotoCard({
       aria-label={`Ver foto ${index + 1}`}
       className="relative aspect-[3/4] rounded-lg overflow-hidden cursor-pointer select-none group active:scale-[0.99] transition-all bg-theme-surface-2 border border-theme shadow-xs hover:border-emerald-500/60"
     >
-      {!loaded && !errored && <div className="absolute inset-0 skeleton" />}
-
-      {errored && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-theme-surface-2 text-theme-muted gap-1.5 p-3 text-center">
-          <ImageOff className="w-7 h-7 text-theme-muted" />
-          <span className="text-xs font-medium text-theme-muted">
-            Imagem indisponível
-          </span>
-        </div>
-      )}
-
-      {!errored && (
-        <img
-          src={url}
-          alt={`Foto ${index + 1}`}
-          loading="lazy"
-          decoding="async"
-          className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
-            loaded ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoad={() => setLoaded(true)}
-          onError={() => setErrored(true)}
-        />
-      )}
+      <AsyncPhoto
+        src={url}
+        alt={`Foto ${index + 1}`}
+        loadingLabel="Carregando foto…"
+        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        fallbackIcon={<ImageOff className="w-7 h-7 text-theme-muted" />}
+      />
 
       <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/35 to-transparent pointer-events-none" />
 

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Eye, EyeOff, ArrowLeft, Lock, Mail, Activity, AlertTriangle, Check } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowLeft, Lock, Mail, AlertTriangle, Check } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { BrandMark } from "@/components/BrandMark";
 import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
@@ -41,9 +42,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col justify-between p-10 bg-[#10161D] text-white border-r border-slate-800">
         <div>
           <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
-              <Activity className="w-5 h-5 stroke-[2.2]" />
-            </div>
+            <BrandMark className="w-9 h-9" />
             <span className="font-bold text-xl tracking-tight">
               Cattle<span className="text-emerald-400">Vision</span>
             </span>
@@ -93,9 +92,7 @@ export default function LoginPage() {
             </Link>
             <div className="flex items-center gap-2.5">
               <div className="lg:hidden flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-emerald-600 flex items-center justify-center text-white">
-                  <Activity className="w-4 h-4 stroke-[2.2]" />
-                </div>
+                <BrandMark className="w-7 h-7" />
                 <span className="font-bold text-sm text-theme-primary">
                   Cattle<span className="text-emerald-600 dark:text-emerald-400">Vision</span>
                 </span>
