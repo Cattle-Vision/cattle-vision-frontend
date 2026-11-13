@@ -31,7 +31,7 @@ import { compressImageFile, formatBytes } from "@/lib/image-client";
 import {
   computeInstantVideoScore,
   evaluatePhotoScoreBeforeUpload,
-  getReticleCropCoordinates,
+  getFramingCaptureRect,
   VisionScoreResult,
 } from "@/lib/vision-client";
 import { enqueueSync } from "@/lib/sync";
@@ -42,7 +42,7 @@ type Screen = "viewfinder" | "preview" | "uploading" | "done" | "error";
 async function captureVideoFrame(
   video: HTMLVideoElement,
   canvas: HTMLCanvasElement,
-  _reticleEl?: HTMLElement | null,
+  reticleEl?: HTMLElement | null,
   maxDim = 1600,
   quality = 0.88
 ): Promise<{ blob: Blob; width: number; height: number } | null> {
@@ -51,10 +51,14 @@ async function captureVideoFrame(
     const vh = video.videoHeight;
     if (!vw || !vh) return null;
 
-    // Preserva a imagem completa do animal sem recortar a anatomia.
-    // A mira (retículo) na tela serve como guia de mira visual do operador, não como tesoura de recorte.
-    let dw = vw;
-    let dh = vh;
+    // Captura alinhada ao quadro visível na tela + margem segura ao redor da mira,
+    // evitando bordas ocultas em 16:9 vertical que diminuem a garupa para a IA.
+    const rect = reticleEl ? getFramingCaptureRect(video, reticleEl) : { sx: 0, sy: 0, sw: vw, sh: vh };
+    const sw = Math.max(64, rect.sw || vw);
+    const sh = Math.max(64, rect.sh || vh);
+
+    let dw = sw;
+    let dh = sh;
 
     if (dw > maxDim || dh > maxDim) {
       if (dw > dh) {
@@ -71,7 +75,7 @@ async function captureVideoFrame(
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return null;
 
-    ctx.drawImage(video, 0, 0, vw, vh, 0, 0, dw, dh);
+    ctx.drawImage(video, rect.sx, rect.sy, sw, sh, 0, 0, dw, dh);
 
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), "image/jpeg", quality)
@@ -149,6 +153,8 @@ function CameraContent() {
 
     const desiredFacing = targetFacing ?? facingMode;
     const desiredDeviceId = targetDeviceId ?? selectedDeviceId;
+    const isPortraitViewport =
+      typeof window !== "undefined" && window.innerHeight > window.innerWidth;
 
     const attempts: MediaStreamConstraints[] = [];
 
@@ -156,8 +162,8 @@ function CameraContent() {
       attempts.push({
         video: {
           deviceId: { exact: desiredDeviceId },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          width: { ideal: isPortraitViewport ? 1200 : 1600 },
+          height: { ideal: isPortraitViewport ? 1600 : 1200 },
         },
         audio: false,
       });
@@ -168,6 +174,14 @@ function CameraContent() {
     }
 
     attempts.push(
+      {
+        video: {
+          facingMode: { ideal: desiredFacing },
+          width: { ideal: isPortraitViewport ? 1200 : 1600 },
+          height: { ideal: isPortraitViewport ? 1600 : 1200 },
+        },
+        audio: false,
+      },
       {
         video: {
           facingMode: { ideal: desiredFacing },
@@ -258,16 +272,20 @@ function CameraContent() {
     };
   }, [animalId]);
 
+  const liveAbortRef = useRef<AbortController | null>(null);
+  const liveAiFreshUntilRef = useRef<number>(0);
+
   useEffect(() => {
     if (screen !== "viewfinder" || !vidReady || !!camErr) return;
 
     let active = true;
 
-    // Executa apenas análise óptica local em tempo real no viewfinder,
-    // evitando tráfego de rede contínuo em áreas rurais; a avaliação completa
-    // é disparada apenas após a captura ou seleção da galeria.
-    const interval = setInterval(() => {
+    // Métricas ópticas locais rápidas (iluminação/foco) enquanto aguarda confirmação real da IA
+    const opticalInterval = setInterval(() => {
       if (!active) return;
+      // Se recebemos uma confirmação YOLO recente (< 3s), preservamos a leitura real da IA
+      if (Date.now() < liveAiFreshUntilRef.current) return;
+
       const video = videoRef.current;
       const scratch = scratchCanvasRef.current;
       if (!video || !scratch || !video.videoWidth) return;
@@ -279,11 +297,55 @@ function CameraContent() {
           prev === null ? instant.score : Math.round(prev * 0.75 + instant.score * 0.25)
         );
       }
-    }, 350);
+    }, 380);
+
+    // Amostragem neural periódica (throttle de 2.2s, 1 requisição por vez) quando online
+    const runLiveAiTick = async () => {
+      if (!active || (typeof navigator !== "undefined" && !navigator.onLine)) return;
+      if (liveAbortRef.current) return;
+
+      const video = videoRef.current;
+      const scratch = scratchCanvasRef.current;
+      if (!video || !scratch || !video.videoWidth) return;
+
+      const frame = await captureVideoFrame(video, scratch, reticleRef.current, 480, 0.72);
+      if (!frame || !active) return;
+
+      const controller = new AbortController();
+      liveAbortRef.current = controller;
+
+      try {
+        const res = await evaluatePhotoScoreBeforeUpload(frame.blob, controller.signal);
+        if (!active || controller.signal.aborted) return;
+
+        if (res.source === "yolo-onnx") {
+          liveAiFreshUntilRef.current = Date.now() + 2800;
+          setLiveScore(Math.round(res.score));
+          setLiveStatus(
+            res.score >= 70
+              ? "Garupa confirmada pela IA"
+              : res.score >= 40
+              ? "Traseira detectada · Pode capturar"
+              : "Aproxime e centralize a garupa"
+          );
+        }
+      } finally {
+        if (liveAbortRef.current === controller) {
+          liveAbortRef.current = null;
+        }
+      }
+    };
+
+    const aiInterval = setInterval(() => {
+      void runLiveAiTick();
+    }, 2200);
 
     return () => {
       active = false;
-      clearInterval(interval);
+      clearInterval(opticalInterval);
+      clearInterval(aiInterval);
+      liveAbortRef.current?.abort();
+      liveAbortRef.current = null;
     };
   }, [screen, vidReady, camErr]);
 
@@ -307,6 +369,9 @@ function CameraContent() {
   };
 
   const handleCapture = async () => {
+    liveAbortRef.current?.abort();
+    liveAbortRef.current = null;
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !vidReady) {
@@ -314,7 +379,7 @@ function CameraContent() {
       return;
     }
 
-    const result = await captureVideoFrame(video, canvas, null, 1600, 0.88);
+    const result = await captureVideoFrame(video, canvas, reticleRef.current, 1600, 0.88);
     if (!result) {
       setCamErr("Não foi possível capturar o quadro. Envie da galeria.");
       return;
@@ -746,11 +811,42 @@ function CameraContent() {
       {screen === "preview" && previewUrl && (
         <div className="absolute inset-0 z-30 flex flex-col bg-slate-950">
           <div className="flex-1 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden">
-            <img
-              src={previewUrl}
-              alt="Preview da captura"
-              className="max-w-full max-h-full object-contain rounded-lg border border-white/10 shadow-xl"
-            />
+            <div className="relative inline-flex max-w-full max-h-full items-center justify-center">
+              <img
+                src={previewUrl}
+                alt="Preview da captura"
+                className="max-w-full max-h-[68dvh] w-auto h-auto object-contain rounded-lg border border-white/10 shadow-xl"
+              />
+              {previewAnalysis?.source === "yolo-onnx" &&
+                previewAnalysis.box &&
+                previewAnalysis.box.w > 0 &&
+                previewAnalysis.score >= 15 && (
+                  <div
+                    aria-label="Região detectada pela IA"
+                    className={`pointer-events-none absolute rounded border-2 ${
+                      previewAnalysis.score >= 40
+                        ? "border-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.45)]"
+                        : "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.45)]"
+                    }`}
+                    style={{
+                      left: `${Math.max(0, (previewAnalysis.box.cx - previewAnalysis.box.w / 2) * 100)}%`,
+                      top: `${Math.max(0, (previewAnalysis.box.cy - previewAnalysis.box.h / 2) * 100)}%`,
+                      width: `${Math.min(100, previewAnalysis.box.w * 100)}%`,
+                      height: `${Math.min(100, previewAnalysis.box.h * 100)}%`,
+                    }}
+                  >
+                    <span
+                      className={`absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
+                        previewAnalysis.score >= 40
+                          ? "bg-emerald-500 text-slate-950"
+                          : "bg-amber-400 text-slate-950"
+                      }`}
+                    >
+                      IA · {Math.round(previewAnalysis.score)}%
+                    </span>
+                  </div>
+                )}
+            </div>
             {imageMeta && (
               <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-white/10 text-slate-300 text-[11px] font-semibold px-2.5 py-0.5 rounded-md backdrop-blur-md">
                 {imageMeta}

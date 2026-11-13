@@ -68,8 +68,81 @@ export function getReticleCropCoordinates(
 }
 
 /**
+ * Calcula a região recomendada de captura no vídeo (`sx, sy, sw, sh`) alinhada ao que
+ * o operador realmente vê na tela (`object-cover` + margem de segurança de ~35% ao redor da mira).
+ *
+ * Por que isso melhora o enquadramento da IA:
+ * Em celulares na vertical, o sensor da câmera costuma entregar 16:9 horizontal (ex.: 1920x1080)
+ * enquanto `<video class="object-cover">` mostra apenas a faixa central. Sem este recorte,
+ * paredes/curral fora da tela entram na foto, reduzindo a traseira do animal no tensor 640x640 do YOLO.
+ */
+export function getFramingCaptureRect(
+  video: HTMLVideoElement,
+  reticleEl?: HTMLElement | null
+): { sx: number; sy: number; sw: number; sh: number } {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return { sx: 0, sy: 0, sw: 0, sh: 0 };
+
+  const videoRect = video.getBoundingClientRect();
+  if (videoRect.width <= 0 || videoRect.height <= 0) {
+    return { sx: 0, sy: 0, sw: vw, sh: vh };
+  }
+
+  // Área visível na tela após `object-cover`
+  const scale = Math.max(videoRect.width / vw, videoRect.height / vh);
+  const renderedW = vw * scale;
+  const renderedH = vh * scale;
+  const offsetX = (videoRect.width - renderedW) / 2;
+  const offsetY = (videoRect.height - renderedH) / 2;
+
+  const visSx = Math.max(0, -offsetX / scale);
+  const visSy = Math.max(0, -offsetY / scale);
+  const visSw = Math.min(vw - visSx, videoRect.width / scale);
+  const visSh = Math.min(vh - visSy, videoRect.height / scale);
+
+  if (!reticleEl) {
+    return {
+      sx: Math.round(visSx),
+      sy: Math.round(visSy),
+      sw: Math.max(64, Math.round(visSw)),
+      sh: Math.max(64, Math.round(visSh)),
+    };
+  }
+
+  const reticle = getReticleCropCoordinates(video, reticleEl);
+  if (reticle.sw <= 0 || reticle.sh <= 0) {
+    return {
+      sx: Math.round(visSx),
+      sy: Math.round(visSy),
+      sw: Math.max(64, Math.round(visSw)),
+      sh: Math.max(64, Math.round(visSh)),
+    };
+  }
+
+  // Expande a mira com margem anatômica confortável para não cortar ísquios/cauda,
+  // mantendo a captura dentro dos limites visíveis da pré-visualização.
+  const cx = reticle.sx + reticle.sw / 2;
+  const cy = reticle.sy + reticle.sh / 2;
+  const paddedW = Math.min(vw, Math.max(reticle.sw * 1.48, Math.min(visSw, vw * 0.65)));
+  const paddedH = Math.min(vh, Math.max(reticle.sh * 1.38, Math.min(visSh, vh * 0.78)));
+
+  let sx = cx - paddedW / 2;
+  let sy = cy - paddedH / 2;
+  sx = Math.max(0, Math.min(vw - paddedW, sx));
+  sy = Math.max(0, Math.min(vh - paddedH, sy));
+
+  return {
+    sx: Math.round(sx),
+    sy: Math.round(sy),
+    sw: Math.max(64, Math.round(paddedW)),
+    sh: Math.max(64, Math.round(paddedH)),
+  };
+}
+
+/**
  * Calcula métricas ópticas instantâneas diretamente da REGIÃO RECORTADA pela mira do `<video>`
- * para alimentar a confiança ao vivo enquanto o operador enquadra a traseira bovina.
+ * para orientar iluminação e foco sem gerar falsos positivos antes da confirmação neural.
  */
 export function computeInstantVideoScore(
   video: HTMLVideoElement,
@@ -136,18 +209,18 @@ export function computeInstantVideoScore(
   const contrastScore = Math.min(1, stdDev / 48);
   const subjectScore = Math.min(1, avgCenterDiff / 28);
 
+  // Avaliação puramente óptica fica limitada a 72% para nunca iludir com "96% ideal" sem detecção do modelo
   const raw =
     (sharpnessScore * 0.45 + contrastScore * 0.3 + subjectScore * 0.25) *
     lightFactor *
-    95;
-  const score = Math.round(Math.max(8, Math.min(96, raw)));
+    72;
+  const score = Math.round(Math.max(8, Math.min(72, raw)));
 
-  let statusText = "Posicione a garupa na mira";
+  let statusText = "Centralize a garupa na mira";
   if (mean < 35) statusText = "Ambiente muito escuro";
   else if (mean > 228) statusText = "Excesso de luz / contraluz";
-  else if (avgEdge < 9) statusText = "Foco instável";
-  else if (score >= 70) statusText = "Enquadramento ideal · Pronto";
-  else if (score >= 45) statusText = "Traseira detectada na mira";
+  else if (avgEdge < 9) statusText = "Imagem desfocada / sem nitidez";
+  else if (score >= 52) statusText = "Iluminação e nitidez boas";
 
   return { score, statusText };
 }
@@ -156,7 +229,8 @@ export function computeInstantVideoScore(
  * Avalia a Confiança da IA de um Blob de imagem ANTES do upload definitivo enviando ao backend.
  */
 export async function evaluatePhotoScoreBeforeUpload(
-  blob: Blob
+  blob: Blob,
+  signal?: AbortSignal
 ): Promise<VisionScoreResult> {
   try {
     const fd = new FormData();
@@ -166,6 +240,7 @@ export async function evaluatePhotoScoreBeforeUpload(
     const res = await fetch(`${baseUrl}/api/photos/score`, {
       method: "POST",
       body: fd,
+      signal,
     });
 
     if (res.ok) {
