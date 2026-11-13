@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2 } from 'lucide-react';
 import { Photo, getPhotoUrl } from '@/lib/types';
 import { apiFetch } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 
 interface PhotoLightboxProps {
   photos: Photo[];
@@ -20,6 +21,7 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [recalibrating, setRecalibrating] = useState(false);
   const [imgStatus, setImgStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const { toast } = useToast();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const touchStartX = useRef<number | null>(null);
@@ -104,8 +106,8 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
         prev.map((p, idx) => (idx === currentIndex ? { ...p, score: updatedScore } : p))
       );
       onPhotoRecalibrated?.(currentPhoto.id, updatedScore);
-    } catch (err) {
-      console.error("Erro ao recalibrar foto:", err);
+    } catch (err: any) {
+      toast(err?.message || 'Erro ao recalcular enquadramento da foto.', 'error');
     } finally {
       setRecalibrating(false);
     }
@@ -133,6 +135,16 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
             <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               <Activity className="w-3.5 h-3.5" />
               Enquadramento: {Math.round(currentPhoto.score as number)}%
+            </span>
+          )}
+          {currentPhoto.ics?.status === 'CALCULATED' &&
+          typeof currentPhoto.ics.score === 'number' ? (
+            <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-200 border border-blue-400/30">
+              ICS: {currentPhoto.ics.score.toFixed(1)} · {currentPhoto.ics.classification}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/30">
+              ICS e Contorno: Em desenvolvimento
             </span>
           )}
         </div>
@@ -191,20 +203,61 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
             <span className="text-sm font-medium">Não foi possível carregar esta imagem.</span>
           </div>
         ) : (
-          <img
-            ref={imgRef}
-            key={currentPhoto.id}
-            src={url}
-            alt={`Foto ${currentIndex + 1}`}
-            onLoad={() => setImgStatus('loaded')}
-            onError={() => setImgStatus('error')}
-            className={`max-w-full max-h-full object-contain rounded-lg animate-scale-in select-none shadow-2xl transition-opacity duration-200 ${
-              imgStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
-            }`}
-            draggable={false}
-          />
+          <div className="relative inline-flex items-center justify-center max-w-full max-h-full">
+            <img
+              ref={imgRef}
+              key={currentPhoto.id}
+              src={url}
+              alt={`Foto ${currentIndex + 1}`}
+              onLoad={() => setImgStatus('loaded')}
+              onError={() => setImgStatus('error')}
+              className={`max-w-full max-h-full object-contain rounded-lg animate-scale-in select-none shadow-2xl transition-opacity duration-200 ${
+                imgStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
+              }`}
+              draggable={false}
+            />
+            {imgStatus === 'loaded' &&
+              Array.isArray(currentPhoto.contourPoints) &&
+              currentPhoto.contourPoints.length >= 2 && (
+                <svg
+                  viewBox={
+                    Math.max(...currentPhoto.contourPoints.map((pt) => Math.max(pt.x, pt.y))) <= 1.05
+                      ? '0 0 1 1'
+                      : '0 0 100 100'
+                  }
+                  preserveAspectRatio="none"
+                  className="absolute inset-0 w-full h-full pointer-events-none rounded-lg"
+                >
+                  <polygon
+                    points={currentPhoto.contourPoints.map((pt) => `${pt.x},${pt.y}`).join(' ')}
+                    fill="rgba(16, 185, 129, 0.14)"
+                    stroke="#34d399"
+                    strokeWidth={
+                      Math.max(...currentPhoto.contourPoints.map((pt) => Math.max(pt.x, pt.y))) <= 1.05
+                        ? '0.006'
+                        : '0.6'
+                    }
+                  />
+                </svg>
+              )}
+          </div>
         )}
       </div>
+
+      {/* Aviso transparente quando a IA de ICS ainda não executa */}
+      {currentPhoto.ics?.status !== 'CALCULATED' && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/65 border border-amber-400/25 text-[11px] text-amber-200/90 backdrop-blur-sm pointer-events-none whitespace-nowrap max-w-[90vw] truncate"
+          style={{
+            bottom:
+              photos.length > 1
+                ? 'calc(max(1.25rem, env(safe-area-inset-bottom)) + 2.25rem)'
+                : 'max(1rem, env(safe-area-inset-bottom))',
+          }}
+        >
+          IA de avaliação de ICS e contorno corporal em desenvolvimento (modelo neural inativo)
+        </div>
+      )}
 
       {/* Botão anterior */}
       {photos.length > 1 && (

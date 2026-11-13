@@ -21,8 +21,8 @@ export interface CompressedImageResult {
  */
 export async function compressImageFile(
   fileOrBlob: File | Blob,
-  maxDimension = 1600,
-  quality = 0.86,
+  maxDimension = 2048,
+  quality = 0.92,
   cropAspect?: number
 ): Promise<CompressedImageResult> {
   const originalSize = fileOrBlob.size;
@@ -47,6 +47,28 @@ export async function compressImageFile(
   if (typeof window !== "undefined" && "createImageBitmap" in window) {
     try {
       const bitmap = await createImageBitmap(fileOrBlob);
+      const maxOriginal = Math.max(bitmap.width, bitmap.height);
+
+      // Preserva JPEG original de alta resolução sem degradação dupla no Canvas
+      if (
+        !cropAspect &&
+        fileOrBlob.type === "image/jpeg" &&
+        maxOriginal > 0 &&
+        maxOriginal <= maxDimension &&
+        originalSize <= 3.5 * 1024 * 1024
+      ) {
+        const w = bitmap.width;
+        const h = bitmap.height;
+        bitmap.close?.();
+        return {
+          blob: fileOrBlob,
+          width: w,
+          height: h,
+          originalSize,
+          compressedSize: originalSize,
+        };
+      }
+
       const crop = computeCrop(bitmap.width, bitmap.height);
       const { width, height } = calculateDimensions(
         crop.sw,

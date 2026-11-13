@@ -10,7 +10,10 @@ import { getApiUrl } from "./api";
 
 export interface VisionScoreResult {
   score: number;
+  confidence?: number;
   lowQuality: boolean;
+  error?: boolean;
+  rejectedReason?: "human-detected" | "non-bovine-detected";
   source: "yolo-onnx" | "vision-analysis" | "client-optical";
   feedback: string;
   box?: {
@@ -120,17 +123,17 @@ export function getFramingCaptureRect(
     };
   }
 
-  // Expande a mira com margem anatômica confortável para não cortar ísquios/cauda,
-  // mantendo a captura dentro dos limites visíveis da pré-visualização.
+  // Expande a mira com margem anatômica proporcional (evita distorção excessiva entre
+  // webcams landscape 16:9 de PC e câmeras portrait 9:16 de celular), preservando os limites visíveis.
   const cx = reticle.sx + reticle.sw / 2;
   const cy = reticle.sy + reticle.sh / 2;
-  const paddedW = Math.min(vw, Math.max(reticle.sw * 1.48, Math.min(visSw, vw * 0.65)));
-  const paddedH = Math.min(vh, Math.max(reticle.sh * 1.38, Math.min(visSh, vh * 0.78)));
+  const paddedW = Math.min(visSw, Math.max(reticle.sw * 1.48, reticle.sh * 1.12));
+  const paddedH = Math.min(visSh, Math.max(reticle.sh * 1.38, reticle.sw * 1.18));
 
   let sx = cx - paddedW / 2;
   let sy = cy - paddedH / 2;
-  sx = Math.max(0, Math.min(vw - paddedW, sx));
-  sy = Math.max(0, Math.min(vh - paddedH, sy));
+  sx = Math.max(visSx, Math.min(visSx + visSw - paddedW, sx));
+  sy = Math.max(visSy, Math.min(visSy + visSh - paddedH, sy));
 
   return {
     sx: Math.round(sx),
@@ -142,7 +145,7 @@ export function getFramingCaptureRect(
 
 /**
  * Calcula métricas ópticas instantâneas diretamente da REGIÃO RECORTADA pela mira do `<video>`
- * para orientar iluminação e foco sem gerar falsos positivos antes da confirmação neural.
+ * para orientar iluminação e foco sem bloquear o preview em tempo real.
  */
 export function computeInstantVideoScore(
   video: HTMLVideoElement,
@@ -156,7 +159,7 @@ export function computeInstantVideoScore(
   const { sx, sy, sw, sh } = getReticleCropCoordinates(video, reticleEl);
   if (sw <= 0 || sh <= 0) return null;
 
-  const SIZE = 96;
+  const SIZE = 64;
   scratchCanvas.width = SIZE;
   scratchCanvas.height = SIZE;
   const ctx = scratchCanvas.getContext("2d", { willReadFrequently: true });
@@ -184,22 +187,26 @@ export function computeInstantVideoScore(
   const variance = Math.max(0, sumLumaSq / totalPixels - mean * mean);
   const stdDev = Math.sqrt(variance);
 
-  for (let y = 16; y < SIZE - 16; y++) {
-    for (let x = 16; x < SIZE - 16; x++) {
+  const margin = 10;
+  const centerStart = 16;
+  const centerEnd = 48;
+  let centerCount = 0;
+  for (let y = margin; y < SIZE - margin; y++) {
+    for (let x = margin; x < SIZE - margin; x++) {
       const i = y * SIZE + x;
       const gx = Math.abs(luma[i + 1] - luma[i - 1]);
       const gy = Math.abs(luma[i + SIZE] - luma[i - SIZE]);
-      const grad = gx + gy;
-      edgeEnergy += grad;
-      if (x >= 24 && x <= 72 && y >= 20 && y <= 76) {
+      edgeEnergy += gx + gy;
+      if (x >= centerStart && x <= centerEnd && y >= centerStart && y <= centerEnd) {
         centerContrast += Math.abs(luma[i] - mean);
+        centerCount++;
       }
     }
   }
 
-  const innerPixels = (SIZE - 32) * (SIZE - 32);
+  const innerPixels = (SIZE - margin * 2) * (SIZE - margin * 2);
   const avgEdge = edgeEnergy / innerPixels;
-  const avgCenterDiff = centerContrast / (48 * 56);
+  const avgCenterDiff = centerContrast / Math.max(1, centerCount);
 
   let lightFactor = 1.0;
   if (mean < 32) lightFactor = Math.max(0.2, mean / 32);
@@ -230,14 +237,16 @@ export function computeInstantVideoScore(
  */
 export async function evaluatePhotoScoreBeforeUpload(
   blob: Blob,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  mode: "live" | "full" = "full"
 ): Promise<VisionScoreResult> {
   try {
     const fd = new FormData();
     fd.append("file", blob, "frame.jpg");
 
     const baseUrl = getApiUrl();
-    const res = await fetch(`${baseUrl}/api/photos/score`, {
+    const qs = mode === "live" ? "?mode=live" : "";
+    const res = await fetch(`${baseUrl}/api/photos/score${qs}`, {
       method: "POST",
       body: fd,
       signal,
@@ -249,14 +258,17 @@ export async function evaluatePhotoScoreBeforeUpload(
         return data;
       }
     }
-  } catch {
-    // Fallback estruturado
+  } catch (err) {
+    if ((err as Error)?.name === "AbortError") {
+      throw err;
+    }
   }
 
   return {
-    score: 50.0,
-    lowQuality: false,
+    score: 0,
+    lowQuality: true,
+    error: true,
     source: "client-optical",
-    feedback: "Análise óptica preliminar concluída. O modelo YOLO validará no upload.",
+    feedback: "Não foi possível consultar a IA agora — o servidor validará no upload.",
   };
 }

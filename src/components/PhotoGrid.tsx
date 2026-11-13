@@ -38,6 +38,8 @@ function PhotoCard({
 
   const hasScore = typeof photo.score === 'number' && !Number.isNaN(photo.score);
   const isHighScore = hasScore && (photo.score as number) >= 45;
+  const icsCalculated =
+    photo.ics?.status === 'CALCULATED' && typeof photo.ics.score === 'number';
 
   return (
     <div
@@ -65,17 +67,32 @@ function PhotoCard({
 
       {hasScore && (
         <div
-          title={`Qualidade de enquadramento: ${Math.round(photo.score as number)}%`}
-          className={`absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold tabular-nums backdrop-blur-md shadow-xs pointer-events-none ${
+          title={`Enquadramento anatômico (YOLO): ${Math.round(photo.score as number)}%`}
+          className={`absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold tabular-nums backdrop-blur-md shadow-xs pointer-events-none ${
             isHighScore
               ? 'bg-emerald-600/90 text-white'
               : 'bg-amber-600/90 text-white'
           }`}
         >
           <Activity className="w-3 h-3" />
-          {Math.round(photo.score as number)}%
+          Enq. {Math.round(photo.score as number)}%
         </div>
       )}
+
+      <div
+        title={
+          icsCalculated
+            ? `ICS calculado: ${photo.ics?.score?.toFixed(1)}`
+            : 'Módulo de IA para ICS ainda em desenvolvimento'
+        }
+        className={`absolute bottom-8 left-2.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold backdrop-blur-md pointer-events-none ${
+          icsCalculated
+            ? 'bg-emerald-600/90 text-white'
+            : 'bg-black/65 text-amber-300 border border-amber-400/30'
+        }`}
+      >
+        {icsCalculated ? `ICS ${photo.ics?.score?.toFixed(1)}` : 'ICS: Em dev'}
+      </div>
 
       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
         <div className="bg-black/65 text-white p-2.5 rounded-full backdrop-blur-sm shadow-lg">

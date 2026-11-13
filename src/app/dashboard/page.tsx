@@ -31,10 +31,13 @@ import {
   LayoutGrid,
   List,
   RefreshCw,
+  MapPin,
+  AlertTriangle,
 } from "lucide-react";
 import { Animal, getPhotoUrl } from "@/lib/types";
 import { AsyncPhoto } from "@/components/AsyncPhoto";
 import { apiFetch, apiFetchCached, getApiCacheSnapshot, invalidateApiCache } from "@/lib/api";
+import { getHerdSnapshot, saveHerdSnapshot } from "@/lib/sync";
 import { useAuth } from "@/lib/auth-context";
 import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
@@ -126,11 +129,11 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
 
           {bestScore !== null && (
             <div
-              title={`Qualidade de enquadramento: ${bestScore}%`}
+              title={`Enquadramento da foto mais recente: ${bestScore}%`}
               className="absolute bottom-2 left-2 inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-md bg-black/70 text-emerald-300 backdrop-blur-sm"
             >
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              {bestScore}%
+              Última: {bestScore}%
             </div>
           )}
 
@@ -166,7 +169,7 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
             </button>
           </div>
 
-          <div className="flex items-center gap-2.5 text-xs text-theme-secondary tabular-nums">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-theme-secondary tabular-nums">
             <span>{animal.sex}</span>
             <span className="text-theme-muted">·</span>
             <span className="inline-flex items-center gap-1">
@@ -178,6 +181,15 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
               <Calendar className="w-3.5 h-3.5 text-theme-muted" />
               {animal.age}m
             </span>
+            {animal.location && (
+              <>
+                <span className="text-theme-muted">·</span>
+                <span className="inline-flex items-center gap-1 truncate max-w-[130px]" title={animal.location}>
+                  <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="truncate">{animal.location}</span>
+                </span>
+              </>
+            )}
           </div>
         </div>
       </Link>
@@ -252,10 +264,19 @@ function AnimalListRow({ animal, currentUserId }: { animal: Animal; currentUserI
           <span>{animal.sex}</span>
           <span>{animal.weight} kg</span>
           <span>{animal.age}m</span>
+          {animal.location && (
+            <span className="inline-flex items-center gap-1 text-theme-primary">
+              <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+              {animal.location}
+            </span>
+          )}
           <span>{photoCount} {photoCount === 1 ? "foto" : "fotos"}</span>
           {bestScore !== null && (
-            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
-              Enquadramento {bestScore}%
+            <span
+              title={`Enquadramento da foto mais recente: ${bestScore}%`}
+              className="text-emerald-700 dark:text-emerald-400 font-semibold"
+            >
+              Última foto {bestScore}%
             </span>
           )}
         </div>
@@ -285,6 +306,8 @@ export default function DashboardPage() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [recalibratingHerd, setRecalibratingHerd] = useState(false);
+  const [showIcsNotice, setShowIcsNotice] = useState(false);
+  const [usingOfflineCache, setUsingOfflineCache] = useState(false);
   const router = useRouter();
   const { user, isAdmin, loading: authLoading } = useAuth();
   const { toast, confirm } = useToast();
@@ -304,10 +327,19 @@ export default function DashboardPage() {
         );
         if (Array.isArray(data)) {
           setAnimals(data);
+          setUsingOfflineCache(false);
+          saveHerdSnapshot("herd_summary", data).catch(() => {});
         }
       } catch (err: any) {
         if (err?.message?.includes("401") || err?.message?.includes("Token")) {
           router.push("/login");
+          return;
+        }
+        // Fallback offline via IndexedDB quando a rede rural falhar
+        const offlineList = await getHerdSnapshot<Animal[]>("herd_summary");
+        if (Array.isArray(offlineList) && offlineList.length > 0) {
+          setAnimals(offlineList);
+          setUsingOfflineCache(true);
         }
       } finally {
         setLoading(false);
@@ -342,6 +374,8 @@ export default function DashboardPage() {
     try {
       const data = await apiFetch<any>("/api/animals/recalibrate", { method: "POST" });
       toast(data?.message || `${data?.updatedCount ?? 0} fotos recalculadas.`, "success");
+      invalidateApiCache("/api/animals/");
+      invalidateApiCache("/api/admin/animals");
       await loadAnimals(true);
     } catch (err: any) {
       toast(err?.message || "Erro ao recalcular enquadramento", "error");
@@ -391,6 +425,7 @@ export default function DashboardPage() {
       return (
         a.tag.toUpperCase().includes(q) ||
         (a.name && a.name.toUpperCase().includes(q)) ||
+        (a.location && a.location.toUpperCase().includes(q)) ||
         a.breed.toUpperCase().includes(q)
       );
     });
@@ -423,6 +458,42 @@ export default function DashboardPage() {
       />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 pb-24 sm:pb-8">
+        {!loading && (
+          <div className="mb-4 flex flex-col gap-2">
+            {usingOfflineCache && (
+              <div className="px-3.5 py-2 rounded-lg bg-blue-500/10 border border-blue-500/25 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between gap-2">
+                <span>
+                  Exibindo cópia offline salva no dispositivo. Novos cadastros e fotos serão sincronizados automaticamente ao reconectar.
+                </span>
+              </div>
+            )}
+
+            <div className="rounded-lg bg-amber-500/8 border border-amber-500/25 px-3.5 py-2">
+              <button
+                type="button"
+                onClick={() => setShowIcsNotice((v) => !v)}
+                className="w-full flex items-center justify-between gap-2 text-left text-xs font-semibold text-amber-800 dark:text-amber-300"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  IA de ICS e aptidão para abate: módulo em desenvolvimento
+                </span>
+                <span className="text-[11px] font-medium underline shrink-0">
+                  {showIcsNotice ? "Ocultar" : "Detalhes"}
+                </span>
+              </button>
+              {showIcsNotice && (
+                <p className="text-[11px] text-theme-secondary mt-1.5 leading-relaxed">
+                  Os percentuais exibidos nos cards correspondem apenas à validação automática de{" "}
+                  <strong>enquadramento anatômico (YOLO)</strong>. O modelo neural de cálculo de ICS
+                  (1,0–5,0), contorno corporal e aptidão para abate ainda não está implementado e será
+                  integrado futuramente sobre as fotos armazenadas.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {!loading && animals.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             <div className="card p-3.5 sm:p-4">
@@ -477,7 +548,7 @@ export default function DashboardPage() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar por apelido, raça ou RFID…"
+                  placeholder="Buscar por apelido, raça, pasto ou RFID…"
                   className="field-input pl-10"
                 />
               </div>

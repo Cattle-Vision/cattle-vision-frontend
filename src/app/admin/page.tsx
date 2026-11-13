@@ -229,6 +229,7 @@ export default function AdminPage() {
         data?.message || `${data?.updatedCount ?? 0} fotos recalculadas com sucesso!`,
         'success'
       );
+      invalidateApiCache('/api/animals');
       await loadData(true);
     } catch (err: any) {
       toast(err?.message || 'Erro ao recalcular confiança da IA', 'error');
@@ -402,13 +403,13 @@ export default function AdminPage() {
 
           <div className="card p-3 sm:p-4">
             <p className="text-[11px] font-bold uppercase tracking-wider text-theme-muted flex items-center gap-1">
-              <Activity className="w-3.5 h-3.5 text-amber-500" /> Confiança Média
+              <Activity className="w-3.5 h-3.5 text-amber-500" /> Média Global
             </p>
             <p className="text-xl sm:text-2xl font-extrabold text-theme-primary mt-1">
               {stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
             </p>
             <p className="text-[10px] sm:text-[11px] text-theme-secondary mt-0.5">
-              Fotos analisadas por IA
+              Todas as fotos do dataset
             </p>
           </div>
         </div>
@@ -789,6 +790,33 @@ export default function AdminPage() {
           photos={previewAnimal.photos}
           initialIndex={0}
           onClose={() => setPreviewAnimal(null)}
+          onPhotoRecalibrated={(photoId, newScore) => {
+            setPreviewAnimal((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    photos: prev.photos.map((p) =>
+                      p.id === photoId ? { ...p, score: newScore } : p
+                    ),
+                  }
+                : prev
+            );
+            setAnimals((prev) =>
+              prev.map((a) =>
+                a.id === previewAnimal.id
+                  ? {
+                      ...a,
+                      photos: a.photos.map((p) =>
+                        p.id === photoId ? { ...p, score: newScore } : p
+                      ),
+                    }
+                  : a
+              )
+            );
+            invalidateApiCache('/api/animals');
+            invalidateApiCache('/api/admin/animals');
+            toast(`Enquadramento atualizado para ${Math.round(newScore)}%.`, 'success');
+          }}
         />
       )}
 

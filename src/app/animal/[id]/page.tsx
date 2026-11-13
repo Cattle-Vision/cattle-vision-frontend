@@ -30,13 +30,20 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
+  Ruler,
+  MapPin,
+  Bluetooth,
+  BluetoothConnected,
 } from "lucide-react";
 import PhotoGrid from "@/components/PhotoGrid";
 import PhotoLightbox from "@/components/PhotoLightbox";
 import AppHeader from "@/components/AppHeader";
+import AnimalIcsPanel from "@/components/animal/AnimalIcsPanel";
+import AnimalHealthTabs, { AnimalTabId } from "@/components/animal/AnimalHealthTabs";
 import { useToast } from "@/components/ui/Toast";
 import { Animal, Photo } from "@/lib/types";
-import { BREEDS, SEX_OPTIONS } from "@/lib/animal";
+import { BREEDS, SEX_OPTIONS, normalizeTag } from "@/lib/animal";
+import { bluetoothRfid, BluetoothStatus } from "@/lib/bluetooth-rfid";
 import { compressImageFile } from "@/lib/image-client";
 import { evaluatePhotoScoreBeforeUpload, VisionScoreResult } from "@/lib/vision-client";
 import {
@@ -114,6 +121,11 @@ export default function AnimalProfilePage() {
   const [pendingPhoto, setPendingPhoto] = useState<PendingGalleryPhoto | null>(null);
   const [copiedTag, setCopiedTag] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [activeTab, setActiveTab] = useState<AnimalTabId>("gallery");
+
+  // Suporte ao bastão leitor RFID Bluetooth dentro do modal de edição
+  const [bleSupported, setBleSupported] = useState(true);
+  const [bleStatus, setBleStatus] = useState<BluetoothStatus>("disconnected");
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
@@ -135,8 +147,48 @@ export default function AnimalProfilePage() {
       sex: cachedAnimal?.sex ?? "Fêmea",
       weight: cachedAnimal ? String(cachedAnimal.weight) : "",
       age: cachedAnimal ? String(cachedAnimal.age) : "",
+      length: cachedAnimal?.length != null ? String(cachedAnimal.length) : "",
+      location: cachedAnimal?.location ?? "",
+      observations: cachedAnimal?.observations ?? "",
     };
   });
+
+  useEffect(() => {
+    setBleSupported(bluetoothRfid.isSupported());
+    setBleStatus(bluetoothRfid.getStatus());
+
+    const unsubStatus = bluetoothRfid.onStatusChange((status, _name, errMsg) => {
+      setBleStatus(status);
+      if (status === "error" && errMsg) {
+        toast(errMsg, "error");
+      }
+    });
+
+    const unsubTag = bluetoothRfid.onTag((detail) => {
+      if (!editing) return;
+      const normalized = normalizeTag(detail.tag);
+      setEditForm((prev) => ({ ...prev, tag: normalized }));
+      bluetoothRfid.playAudioFeedback("read");
+      bluetoothRfid.triggerHaptic([80, 40, 80]);
+      toast(`RFID atualizado via Bluetooth: ${normalized}`, "success");
+    });
+
+    return () => {
+      unsubStatus();
+      unsubTag();
+    };
+  }, [editing, toast]);
+
+  const handleToggleEditBle = async () => {
+    if (bleStatus === "connected") {
+      bluetoothRfid.disconnect();
+      return;
+    }
+    const ok = await bluetoothRfid.connect();
+    if (ok) {
+      toast("Leitor RFID conectado para atualização do brinco.", "success");
+    }
+  };
 
   const loadAnimal = useCallback(
     async (forceRefresh = false) => {
@@ -158,6 +210,9 @@ export default function AnimalProfilePage() {
             sex: data.sex,
             weight: String(data.weight),
             age: String(data.age),
+            length: data.length != null ? String(data.length) : "",
+            location: data.location || "",
+            observations: data.observations || "",
           });
         }
       } catch (err: any) {
@@ -188,7 +243,7 @@ export default function AnimalProfilePage() {
     if (!file || !animal) return;
 
     try {
-      const compressed = await compressImageFile(file, 1600, 0.86);
+      const compressed = await compressImageFile(file, 2048, 0.94);
       setPendingPhoto({
         blob: compressed.blob,
         previewUrl: URL.createObjectURL(compressed.blob),
@@ -296,13 +351,16 @@ export default function AnimalProfilePage() {
           sex: editForm.sex,
           weight: Number(editForm.weight),
           age: Number(editForm.age),
+          length: editForm.length.trim() !== "" ? Number(editForm.length) : null,
+          location: editForm.location.trim() || null,
+          observations: editForm.observations.trim() || null,
         },
       });
 
       if (data) {
-        setAnimal((prev) => (prev ? { ...prev, ...data, photos: prev.photos } : prev));
         setEditing(false);
         toast("Dados do animal atualizados.", "success");
+        await loadAnimal(true);
       }
     } catch (err: any) {
       toast(err?.message || "Erro ao atualizar dados.", "error");
@@ -354,6 +412,9 @@ export default function AnimalProfilePage() {
             : prev
         );
       }
+      invalidateApiCache("/api/animals");
+      invalidateApiCache("/api/admin/animals");
+      await loadAnimal(true);
     } catch (err: any) {
       toast(err?.message || "Erro ao recalcular enquadramento.", "error");
     } finally {
@@ -372,7 +433,10 @@ export default function AnimalProfilePage() {
           }
         : prev
     );
+    invalidateApiCache("/api/animals");
+    invalidateApiCache("/api/admin/animals");
     toast(`Enquadramento atualizado para ${Math.round(newScore)}%.`, "success");
+    void loadAnimal(true);
   };
 
   const handleInviteCollaborator = async (e: React.FormEvent) => {
@@ -573,6 +637,16 @@ export default function AnimalProfilePage() {
                   label="Idade"
                   value={`${animal.age} meses`}
                 />
+                <Stat
+                  icon={<Ruler className="w-4 h-4" />}
+                  label="Comprimento"
+                  value={animal.length ? `${animal.length} cm` : "Não informado"}
+                />
+                <Stat
+                  icon={<MapPin className="w-4 h-4" />}
+                  label="Localização"
+                  value={animal.location || "Não informada"}
+                />
               </div>
 
               {/* Ações principais */}
@@ -760,42 +834,63 @@ export default function AnimalProfilePage() {
             </div>
           </div>
 
-          {/* Coluna Direita: Galeria Fotográfica */}
+          {/* Coluna Direita: Abas de Avaliação ICS, Galeria, Localização, Saúde e Observações */}
           <div className="lg:col-span-7 flex flex-col gap-4">
-            <div className="card p-4 sm:p-5">
-              <div className="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b border-theme">
-                <div>
-                  <h2 className="text-base font-bold text-theme-primary">
-                    Histórico Fotográfico ({photoCount})
-                  </h2>
-                  <p className="text-xs text-theme-secondary mt-0.5">
-                    Capturas posteriores utilizadas na avaliação de condição corporal
-                  </p>
+            <AnimalHealthTabs
+              animal={animal}
+              canEdit={true}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onReloadAnimal={() => loadAnimal(true)}
+              galleryContent={
+                <div className="space-y-4">
+                  <AnimalIcsPanel
+                    animal={animal}
+                    photos={photos}
+                    recalibrating={recalibratingAnimal}
+                    onRecalibrate={handleRecalibrateAnimal}
+                    onSelectPhoto={(idx) => setLightboxIndex(idx)}
+                  />
+
+                  <div className="card p-4 sm:p-5">
+                    <div className="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b border-theme">
+                      <div>
+                        <h2 className="text-base font-bold text-theme-primary">
+                          Histórico Fotográfico ({photoCount})
+                        </h2>
+                        <p className="text-xs text-theme-secondary mt-0.5">
+                          Capturas armazenadas e validadas quanto ao enquadramento anatômico
+                        </p>
+                      </div>
+
+                      {photoCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleRecalibrateAnimal}
+                          disabled={recalibratingAnimal}
+                          className="btn-secondary py-1.5 px-3 min-h-[38px] text-xs font-semibold shrink-0"
+                        >
+                          {recalibratingAnimal ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+                          ) : (
+                            <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          )}
+                          <span>
+                            {recalibratingAnimal ? "Recalculando…" : "Recalcular enquadramento"}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+
+                    <PhotoGrid
+                      photos={photos}
+                      onDelete={isOwner || isAdmin ? handleDeletePhoto : undefined}
+                      onSelect={(_, index) => setLightboxIndex(index)}
+                    />
+                  </div>
                 </div>
-
-                {photoCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleRecalibrateAnimal}
-                    disabled={recalibratingAnimal}
-                    className="btn-secondary py-1.5 px-3 min-h-[38px] text-xs font-semibold shrink-0"
-                  >
-                    {recalibratingAnimal ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-                    ) : (
-                      <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    )}
-                    <span>{recalibratingAnimal ? "Recalculando…" : "Recalcular scores"}</span>
-                  </button>
-                )}
-              </div>
-
-              <PhotoGrid
-                photos={photos}
-                onDelete={isOwner || isAdmin ? handleDeletePhoto : undefined}
-                onSelect={(_, index) => setLightboxIndex(index)}
-              />
-            </div>
+              }
+            />
           </div>
         </div>
       </main>
@@ -943,8 +1038,8 @@ export default function AnimalProfilePage() {
       {/* Modal de edição */}
       {editing && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="card w-full max-w-md overflow-hidden animate-scale-in">
-            <div className="px-5 py-4 border-b border-theme flex items-center justify-between">
+          <div className="card w-full max-w-md max-h-[90dvh] overflow-y-auto animate-scale-in">
+            <div className="px-5 py-4 border-b border-theme flex items-center justify-between sticky top-0 bg-theme-surface z-10">
               <h3 className="font-bold text-base text-theme-primary">Editar dados do animal</h3>
               <button
                 type="button"
@@ -968,7 +1063,33 @@ export default function AnimalProfilePage() {
               </div>
 
               <div>
-                <label className="field-label">Identificador RFID / Brinco</label>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <label className="field-label !mb-0">Identificador RFID / Brinco</label>
+                  {(isOwner || isAdmin) && bleSupported && (
+                    <button
+                      type="button"
+                      onClick={handleToggleEditBle}
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded border transition ${
+                        bleStatus === "connected"
+                          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                          : "bg-theme-surface-2 text-theme-secondary border-theme hover:text-theme-primary"
+                      }`}
+                    >
+                      {bleStatus === "connected" ? (
+                        <BluetoothConnected className="w-3 h-3" />
+                      ) : (
+                        <Bluetooth className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      )}
+                      <span>
+                        {bleStatus === "connected"
+                          ? "Leitor ativo"
+                          : bleStatus === "connecting"
+                          ? "Pareando…"
+                          : "Ler RFID BLE"}
+                      </span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
@@ -1031,7 +1152,7 @@ export default function AnimalProfilePage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="field-label">Peso (kg)</label>
                   <input
@@ -1045,7 +1166,7 @@ export default function AnimalProfilePage() {
                   />
                 </div>
                 <div>
-                  <label className="field-label">Idade (meses)</label>
+                  <label className="field-label">Idade (m)</label>
                   <input
                     type="number"
                     min="0"
@@ -1055,6 +1176,40 @@ export default function AnimalProfilePage() {
                     className="field-input tabular-nums"
                   />
                 </div>
+                <div>
+                  <label className="field-label">Compr. (cm)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="1"
+                    value={editForm.length}
+                    placeholder="Ex: 165"
+                    onChange={(e) => setEditForm((p) => ({ ...p, length: e.target.value }))}
+                    className="field-input tabular-nums"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label">Localização atual</label>
+                <input
+                  type="text"
+                  value={editForm.location}
+                  placeholder="Ex: Pasto Sul, Piquete 04"
+                  onChange={(e) => setEditForm((p) => ({ ...p, location: e.target.value }))}
+                  className="field-input text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="field-label">Observação resumida da ficha</label>
+                <textarea
+                  rows={2}
+                  value={editForm.observations}
+                  placeholder="Anotação rápida exibida no topo da aba de Observações Gerais"
+                  onChange={(e) => setEditForm((p) => ({ ...p, observations: e.target.value }))}
+                  className="field-input text-xs resize-y"
+                />
               </div>
 
               <div className="flex justify-end gap-2.5 pt-2">
