@@ -8,12 +8,13 @@
  * - Pré-preenchimento automático de tags RFID lidas via ESP32 Bluetooth.
  * - Tratamento inteligente de duplicidade com adesão instantânea à Guarda Compartilhada.
  */
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Camera, Check, Shuffle, Tag } from "lucide-react";
+import { Loader2, Camera, Check, Shuffle, Tag, Bluetooth, BluetoothConnected } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { BREEDS, SEX_OPTIONS, isValidTag, normalizeTag } from "@/lib/animal";
 import { apiFetch } from "@/lib/api";
+import { bluetoothRfid, BluetoothStatus } from "@/lib/bluetooth-rfid";
 import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
 
@@ -43,6 +44,53 @@ function NewAnimalForm() {
     weight: "",
     age: "",
   });
+  // Quando o operador seleciona "Outra", armazenamos o nome livre da raça
+  const [customBreed, setCustomBreed] = useState("");
+
+  // Suporte direto ao bastão leitor RFID Bluetooth ESP32 dentro do cadastro
+  const [bleSupported, setBleSupported] = useState(true);
+  const [bleStatus, setBleStatus] = useState<BluetoothStatus>("disconnected");
+  const [bleDeviceName, setBleDeviceName] = useState("");
+  const [bleScannedNow, setBleScannedNow] = useState(false);
+
+  useEffect(() => {
+    setBleSupported(bluetoothRfid.isSupported());
+    setBleStatus(bluetoothRfid.getStatus());
+    setBleDeviceName(bluetoothRfid.getDeviceName());
+
+    const unsubStatus = bluetoothRfid.onStatusChange((status, devName, errMsg) => {
+      setBleStatus(status);
+      if (devName) setBleDeviceName(devName);
+      if (status === "error" && errMsg) {
+        toast(errMsg, "error");
+      }
+    });
+
+    const unsubTag = bluetoothRfid.onTag((detail) => {
+      const normalized = normalizeTag(detail.tag);
+      setFormData((prev) => ({ ...prev, tag: normalized }));
+      setBleScannedNow(true);
+      bluetoothRfid.playAudioFeedback("read");
+      bluetoothRfid.triggerHaptic([80, 40, 80]);
+      toast(`Tag lida via Bluetooth: ${normalized}`, "success");
+    });
+
+    return () => {
+      unsubStatus();
+      unsubTag();
+    };
+  }, [toast]);
+
+  const handleToggleBle = async () => {
+    if (bleStatus === "connected") {
+      bluetoothRfid.disconnect();
+      return;
+    }
+    const ok = await bluetoothRfid.connect();
+    if (ok) {
+      toast("Leitor RFID conectado! Aproxime a tag para preencher o código.", "success");
+    }
+  };
 
   const setField = (field: keyof AnimalFormState, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -60,13 +108,20 @@ function NewAnimalForm() {
   const handleSubmit = async (e: React.FormEvent, openCameraAfter: boolean) => {
     e.preventDefault();
     const tag = normalizeTag(formData.tag);
+    const effectiveBreed =
+      formData.breed === "Outra" ? customBreed.trim() : formData.breed.trim();
 
     if (!isValidTag(tag)) {
       toast("Informe uma tag RFID ou brinco válido (mínimo 2 caracteres).", "error");
       return;
     }
-    if (!formData.breed.trim()) {
-      toast("Selecione a raça do animal.", "error");
+    if (!effectiveBreed) {
+      toast(
+        formData.breed === "Outra"
+          ? "Digite o nome da raça personalizada."
+          : "Selecione a raça do animal.",
+        "error"
+      );
       return;
     }
     if (!formData.weight || Number(formData.weight) <= 0) {
@@ -86,6 +141,7 @@ function NewAnimalForm() {
         method: "POST",
         body: {
           ...formData,
+          breed: effectiveBreed,
           tag,
           weight: Number(formData.weight),
           age: Number(formData.age),
@@ -134,6 +190,63 @@ function NewAnimalForm() {
             onSubmit={(e) => handleSubmit(e, true)}
             className="card p-5 sm:p-6 flex flex-col gap-5"
           >
+            {/* Painel de leitura RFID Bluetooth ESP32 diretamente no cadastro */}
+            <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                    bleStatus === "connected"
+                      ? "bg-emerald-600 text-white"
+                      : bleStatus === "connecting"
+                      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
+                      : "bg-theme-surface-2 text-emerald-600 dark:text-emerald-400 border border-theme"
+                  }`}
+                >
+                  {bleStatus === "connected" ? (
+                    <BluetoothConnected className="w-4 h-4" />
+                  ) : (
+                    <Bluetooth className="w-4 h-4" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-theme-primary truncate">
+                    {bleStatus === "connected"
+                      ? `Leitor conectado (${bleDeviceName || "CattleVision-RFID"})`
+                      : bleStatus === "connecting"
+                      ? "Conectando ao leitor RFID…"
+                      : "Ler tag via Bluetooth (ESP32)"}
+                  </p>
+                  <p className="text-[11px] text-theme-secondary truncate">
+                    {!bleSupported
+                      ? "Use Chrome/Edge/Bluefy para parear via Web Bluetooth."
+                      : bleStatus === "connected"
+                      ? bleScannedNow
+                        ? "Última tag recebida do bastão e preenchida abaixo."
+                        : "Aproxime o bastão da tag do animal para preencher automaticamente."
+                      : "Conecte o bastão RFID para preencher o código sem digitar."}
+                  </p>
+                </div>
+              </div>
+
+              {bleSupported && (
+                <button
+                  type="button"
+                  onClick={handleToggleBle}
+                  disabled={bleStatus === "connecting"}
+                  className={`${
+                    bleStatus === "connected" ? "btn-secondary" : "btn-primary"
+                  } py-2 px-3 min-h-[36px] text-xs font-semibold shrink-0`}
+                >
+                  {bleStatus === "connecting" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Bluetooth className="w-3.5 h-3.5" />
+                  )}
+                  <span>{bleStatus === "connected" ? "Desconectar" : "Parear Leitor"}</span>
+                </button>
+              )}
+            </div>
+
             {/* Aviso quando a Tag veio de leitura do ESP32 */}
             {initialTag && (
               <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300">
@@ -184,14 +297,17 @@ function NewAnimalForm() {
                   id="tag-field"
                   type="text"
                   value={formData.tag}
-                  onChange={(e) => setField("tag", e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    setBleScannedNow(false);
+                    setField("tag", e.target.value.toUpperCase());
+                  }}
                   className="field-input font-mono text-xs tracking-wider uppercase font-semibold"
                   placeholder="Ex: E2801160... ou NEL-0142"
                   required
                   autoComplete="off"
                 />
                 <p className="text-[11px] text-theme-secondary mt-1">
-                  Número do brinco visual ou código do leitor ESP32.
+                  Número do brinco visual ou código lido via Bluetooth.
                 </p>
               </div>
             </div>
@@ -220,6 +336,24 @@ function NewAnimalForm() {
                   );
                 })}
               </div>
+
+              {formData.breed === "Outra" && (
+                <div className="mt-3">
+                  <label className="field-label" htmlFor="custom-breed-field">
+                    Qual raça? <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="custom-breed-field"
+                    type="text"
+                    required
+                    value={customBreed}
+                    onChange={(e) => setCustomBreed(e.target.value)}
+                    placeholder="Digite o nome da raça (ex: Simental, Tabapuã, Guzerá)"
+                    className="field-input text-sm"
+                    autoFocus
+                  />
+                </div>
+              )}
             </div>
 
             {/* Sexo */}

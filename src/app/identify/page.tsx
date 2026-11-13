@@ -174,26 +174,180 @@ export default function IdentifyPage() {
 
       <main className="flex-1 p-3 sm:p-6">
         <div className="max-w-xl mx-auto flex flex-col gap-4">
-          {/* Busca Rápida & Consulta Global RFID */}
-          <div className="card p-4 sm:p-5">
-            <h2 className="text-sm sm:text-base font-bold text-theme-primary mb-1">
-              Buscar por brinco, apelido ou RFID
+          {/* Card Principal: Leitor RFID ESP32 via Bluetooth (prioridade no manejo em curral) */}
+          <div className="card p-4 sm:p-5 border-emerald-500/35 bg-gradient-to-br from-emerald-500/[0.06] to-transparent">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    bleStatus === "connected"
+                      ? "bg-emerald-600 text-white"
+                      : bleStatus === "connecting"
+                      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
+                      : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                  }`}
+                >
+                  <Bluetooth className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm sm:text-base font-bold text-theme-primary truncate">
+                      Leitor RFID Bluetooth (ESP32)
+                    </h2>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shrink-0">
+                      Principal
+                    </span>
+                  </div>
+                  <p className="text-xs text-theme-secondary truncate">
+                    {bleStatus === "connected"
+                      ? `Conectado: ${bleDeviceName || "CattleVision-RFID"}`
+                      : bleStatus === "connecting"
+                      ? "Pareando com o dispositivo…"
+                      : "Pareie o bastão leitor para identificar instantaneamente no curral"}
+                  </p>
+                </div>
+              </div>
+
+              <span
+                className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border flex items-center gap-1.5 shrink-0 ${
+                  bleStatus === "connected"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+                    : bleStatus === "connecting"
+                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+                    : "bg-theme-surface-2 text-theme-muted border-theme"
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    bleStatus === "connected"
+                      ? "bg-emerald-500"
+                      : bleStatus === "connecting"
+                      ? "bg-amber-500 animate-pulse"
+                      : "bg-theme-muted"
+                  }`}
+                />
+                {bleStatus === "connected"
+                  ? "Conectado"
+                  : bleStatus === "connecting"
+                  ? "Conectando"
+                  : "Desconectado"}
+              </span>
+            </div>
+
+            {bleStatus === "connected" ? (
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-3 text-xs">
+                <span className="text-emerald-800 dark:text-emerald-200 font-semibold">
+                  Pronto para leitura automática. Aproxime o bastão da tag do animal.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDisconnectBle}
+                  className="px-2.5 py-1 rounded-md text-xs font-semibold text-theme-secondary hover:text-red-500 bg-theme-surface border border-theme transition shrink-0"
+                >
+                  Desconectar
+                </button>
+              </div>
+            ) : isBleSupported ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={handleConnectBle}
+                  disabled={bleStatus === "connecting"}
+                  className="btn-primary flex-1 py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold"
+                >
+                  {bleStatus === "connecting" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Conectando…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bluetooth className="w-4 h-4" />
+                      <span>Conectar Leitor Bluetooth</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSimulator(!showSimulator)}
+                  className="btn-secondary py-2.5 px-3 text-xs font-medium shrink-0"
+                >
+                  <span>Simular</span>
+                  {showSimulator ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                <p className="font-semibold">Web Bluetooth indisponível neste navegador</p>
+                <p className="text-[11px] leading-relaxed">
+                  No iPhone Safari, utilize o navegador <strong>Bluefy</strong> para pareamento BLE
+                  ou utilize a entrada manual logo abaixo.
+                </p>
+              </div>
+            )}
+
+            {(showSimulator || !isBleSupported) && (
+              <div className="mt-3.5 pt-3 border-t border-theme space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-theme-secondary">
+                    Simulador de leitura RFID
+                  </span>
+                  <button
+                    type="button"
+                    onClick={generateRandomEpc}
+                    className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
+                  >
+                    <Shuffle className="w-3 h-3" />
+                    Gerar EPC 24-Hex
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={simulatedTag}
+                    onChange={(e) => setSimulatedTag(e.target.value.toUpperCase())}
+                    placeholder="Ex: E2801160600002047E7A5A01"
+                    className="field-input font-mono text-xs uppercase flex-1"
+                  />
+                  <button
+                    type="button"
+                    disabled={!simulatedTag.trim() || loading}
+                    onClick={handleSimulateTag}
+                    className="btn-secondary px-3.5 py-2 text-xs font-semibold shrink-0"
+                  >
+                    Simular
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Entrada Manual & Busca Rápida (Secundário ao Bluetooth) */}
+          <div className="card p-4">
+            <h2 className="text-xs sm:text-sm font-bold text-theme-primary mb-1">
+              Entrada manual · Brinco ou apelido
             </h2>
-            <p className="text-xs text-theme-secondary mb-3.5 leading-relaxed">
-              Filtre seus animais enquanto digita ou consulte uma tag RFID no servidor para vincular
-              um animal compartilhado.
+            <p className="text-[11px] text-theme-secondary mb-3 leading-relaxed">
+              Caso esteja sem o bastão Bluetooth, digite o código da tag ou filtre seu rebanho pelo
+              apelido.
             </p>
 
-            {error && <div className="error-banner mb-3.5">{error}</div>}
+            {error && <div className="error-banner mb-3">{error}</div>}
 
-            <form onSubmit={handleManualSubmit} className="flex flex-col sm:flex-row gap-2.5">
+            <form onSubmit={handleManualSubmit} className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-theme-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="tag-input"
                   value={queryOrTag}
                   onChange={(e) => setQueryOrTag(e.target.value)}
-                  className="field-input pl-10 text-sm"
+                  className="field-input pl-10 text-xs sm:text-sm"
                   placeholder="Apelido, raça, brinco ou E280…"
                   autoComplete="off"
                 />
@@ -202,14 +356,14 @@ export default function IdentifyPage() {
               <button
                 type="submit"
                 disabled={loading || !queryOrTag.trim()}
-                className="btn-primary py-2.5 px-4 min-h-[44px] text-xs font-semibold shrink-0"
+                className="btn-secondary py-2 px-4 min-h-[40px] text-xs font-semibold shrink-0"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Search className="w-4 h-4" />
                 )}
-                <span>{loading ? "Consultando…" : "Consultar RFID"}</span>
+                <span>{loading ? "Consultando…" : "Consultar"}</span>
               </button>
             </form>
           </div>
@@ -388,152 +542,6 @@ export default function IdentifyPage() {
             </div>
           )}
 
-          {/* Card Leitor RFID ESP32 via Bluetooth */}
-          <div className="card p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                    bleStatus === "connected"
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                      : bleStatus === "connecting"
-                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 animate-pulse"
-                      : "bg-theme-surface-2 text-theme-secondary"
-                  }`}
-                >
-                  <Bluetooth className="w-4.5 h-4.5" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-theme-primary">Leitor RFID ESP32 (BLE)</h2>
-                  <p className="text-xs text-theme-secondary">
-                    {bleStatus === "connected"
-                      ? `Conectado: ${bleDeviceName || "CattleVision-RFID"}`
-                      : bleStatus === "connecting"
-                      ? "Pareando com o dispositivo…"
-                      : "Pareie o bastão leitor via Bluetooth"}
-                  </p>
-                </div>
-              </div>
-
-              <span
-                className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border flex items-center gap-1.5 shrink-0 ${
-                  bleStatus === "connected"
-                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                    : bleStatus === "connecting"
-                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-                    : "bg-theme-surface-2 text-theme-muted border-theme"
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    bleStatus === "connected"
-                      ? "bg-emerald-500"
-                      : bleStatus === "connecting"
-                      ? "bg-amber-500 animate-pulse"
-                      : "bg-theme-muted"
-                  }`}
-                />
-                {bleStatus === "connected"
-                  ? "Conectado"
-                  : bleStatus === "connecting"
-                  ? "Conectando"
-                  : "Desconectado"}
-              </span>
-            </div>
-
-            {bleStatus === "connected" ? (
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3 text-xs">
-                <span className="text-emerald-800 dark:text-emerald-300 font-medium">
-                  Pronto para leitura. Aproxime o bastão da tag do animal.
-                </span>
-                <button
-                  type="button"
-                  onClick={handleDisconnectBle}
-                  className="px-2.5 py-1 rounded-md text-xs font-semibold text-theme-secondary hover:text-red-500 bg-theme-surface border border-theme transition shrink-0"
-                >
-                  Desconectar
-                </button>
-              </div>
-            ) : isBleSupported ? (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  type="button"
-                  onClick={handleConnectBle}
-                  disabled={bleStatus === "connecting"}
-                  className="btn-secondary flex-1 py-2.5 text-xs font-semibold"
-                >
-                  {bleStatus === "connecting" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Conectando…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Bluetooth className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>Conectar leitor Bluetooth</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowSimulator(!showSimulator)}
-                  className="btn-ghost py-2.5 px-3 text-xs font-medium shrink-0"
-                >
-                  <span>Simular leitura</span>
-                  {showSimulator ? (
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
-                <p className="font-semibold">Web Bluetooth indisponível neste navegador</p>
-                <p className="text-[11px] leading-relaxed">
-                  No iPhone Safari, utilize o navegador <strong>Bluefy</strong> para pareamento BLE
-                  ou use a busca por brinco/apelido acima.
-                </p>
-              </div>
-            )}
-
-            {(showSimulator || !isBleSupported) && (
-              <div className="mt-3.5 pt-3 border-t border-theme space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-theme-secondary">
-                    Simulador de leitura RFID
-                  </span>
-                  <button
-                    type="button"
-                    onClick={generateRandomEpc}
-                    className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
-                  >
-                    <Shuffle className="w-3 h-3" />
-                    Gerar EPC 24-Hex
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={simulatedTag}
-                    onChange={(e) => setSimulatedTag(e.target.value.toUpperCase())}
-                    placeholder="Ex: E2801160600002047E7A5A01"
-                    className="field-input font-mono text-xs uppercase flex-1"
-                  />
-                  <button
-                    type="button"
-                    disabled={!simulatedTag.trim() || loading}
-                    onClick={handleSimulateTag}
-                    className="btn-secondary px-3.5 py-2 text-xs font-semibold shrink-0"
-                  >
-                    Simular
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </main>
 

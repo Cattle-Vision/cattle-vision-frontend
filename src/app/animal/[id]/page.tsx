@@ -119,16 +119,24 @@ export default function AnimalProfilePage() {
   const [inviting, setInviting] = useState(false);
   const [custodyActionLoading, setCustodyActionLoading] = useState(false);
 
+  const isPresetBreed = (b?: string) =>
+    Boolean(b && BREEDS.filter((preset) => preset !== "Outra").includes(b as any));
+
   const [editing, setEditing] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
-  const [editForm, setEditForm] = useState(() => ({
-    tag: cachedAnimal?.tag ?? "",
-    name: cachedAnimal?.name ?? "",
-    breed: cachedAnimal?.breed ?? "Nelore",
-    sex: cachedAnimal?.sex ?? "Fêmea",
-    weight: cachedAnimal ? String(cachedAnimal.weight) : "",
-    age: cachedAnimal ? String(cachedAnimal.age) : "",
-  }));
+  const [editForm, setEditForm] = useState(() => {
+    const initialBreed = cachedAnimal?.breed ?? "Nelore";
+    const preset = isPresetBreed(initialBreed);
+    return {
+      tag: cachedAnimal?.tag ?? "",
+      name: cachedAnimal?.name ?? "",
+      breed: preset ? initialBreed : "Outra",
+      customBreed: preset ? "" : initialBreed,
+      sex: cachedAnimal?.sex ?? "Fêmea",
+      weight: cachedAnimal ? String(cachedAnimal.weight) : "",
+      age: cachedAnimal ? String(cachedAnimal.age) : "",
+    };
+  });
 
   const loadAnimal = useCallback(
     async (forceRefresh = false) => {
@@ -141,10 +149,12 @@ export default function AnimalProfilePage() {
         const data = await apiFetchCached<Animal>(endpoint, forceRefresh ? 0 : 12_000);
         if (data) {
           setAnimal(data);
+          const preset = isPresetBreed(data.breed);
           setEditForm({
             tag: data.tag,
             name: data.name || "",
-            breed: data.breed,
+            breed: preset ? data.breed : "Outra",
+            customBreed: preset ? "" : data.breed,
             sex: data.sex,
             weight: String(data.weight),
             age: String(data.age),
@@ -266,6 +276,14 @@ export default function AnimalProfilePage() {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!animal) return;
+    const effectiveBreed =
+      editForm.breed === "Outra" ? editForm.customBreed.trim() : editForm.breed.trim();
+
+    if (!effectiveBreed) {
+      toast("Digite o nome da raça personalizada.", "error");
+      return;
+    }
+
     setSavingEdit(true);
 
     try {
@@ -274,7 +292,7 @@ export default function AnimalProfilePage() {
         body: {
           tag: editForm.tag,
           name: editForm.name,
-          breed: editForm.breed,
+          breed: effectiveBreed,
           sex: editForm.sex,
           weight: Number(editForm.weight),
           age: Number(editForm.age),
@@ -998,6 +1016,20 @@ export default function AnimalProfilePage() {
                   </select>
                 </div>
               </div>
+
+              {editForm.breed === "Outra" && (
+                <div>
+                  <label className="field-label">Nome da raça personalizada</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.customBreed}
+                    onChange={(e) => setEditForm((p) => ({ ...p, customBreed: e.target.value }))}
+                    placeholder="Ex: Simental, Tabapuã, Guzerá"
+                    className="field-input text-sm"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
