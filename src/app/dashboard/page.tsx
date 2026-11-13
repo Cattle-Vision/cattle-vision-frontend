@@ -38,6 +38,7 @@ import {
   apiFetchCached,
   getApiCacheSnapshot,
   invalidateApiCache,
+  prefetchApi,
   recalibratePhotosSequentially,
 } from "@/lib/api";
 import { getHerdSnapshot, saveHerdSnapshot } from "@/lib/sync";
@@ -98,6 +99,8 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
     <div className="card overflow-hidden group relative hover:border-emerald-500/60 transition-colors flex flex-col justify-between">
       <Link
         href={`/animal/${animal.id}`}
+        onMouseEnter={() => prefetchApi(`/api/animals/${animal.id}`)}
+        onTouchStart={() => prefetchApi(`/api/animals/${animal.id}`)}
         className="block focus:outline-none"
         aria-label={`Abrir ficha de ${displayName}`}
       >
@@ -240,7 +243,12 @@ function AnimalListRow({ animal, currentUserId }: { animal: Animal; currentUserI
         )}
       </Link>
 
-      <Link href={`/animal/${animal.id}`} className="min-w-0 flex-1">
+      <Link
+        href={`/animal/${animal.id}`}
+        onMouseEnter={() => prefetchApi(`/api/animals/${animal.id}`)}
+        onTouchStart={() => prefetchApi(`/api/animals/${animal.id}`)}
+        className="min-w-0 flex-1"
+      >
         <div className="flex items-center gap-2">
           <span className="font-bold text-sm text-theme-primary truncate hover:text-emerald-600 dark:hover:text-emerald-400">
             {displayName}
@@ -354,9 +362,20 @@ export default function DashboardPage() {
       if (!user) {
         router.push("/login");
       } else {
+        if (!Array.isArray(initialSnapshot)) {
+          getHerdSnapshot<Animal[]>("herd_summary")
+            .then((offlineList) => {
+              if (Array.isArray(offlineList) && offlineList.length > 0) {
+                setAnimals((prev) => (prev.length === 0 ? offlineList : prev));
+                setLoading(false);
+              }
+            })
+            .catch(() => {});
+        }
         loadAnimals(false);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, router, loadAnimals]);
 
   const handleRecalibrateHerd = async () => {

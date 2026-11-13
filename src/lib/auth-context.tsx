@@ -20,7 +20,31 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<User>;
   logout: () => void;
-  refreshSession: () => Promise<void>;
+  refreshSession: (force?: boolean) => Promise<void>;
+}
+
+const AUTH_VERIFIED_AT_KEY = "cv_auth_verified_at";
+const AUTH_REVALIDATE_TTL_MS = 60_000;
+
+function markSessionVerifiedNow(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(AUTH_VERIFIED_AT_KEY, String(Date.now()));
+  } catch {
+    // ignore
+  }
+}
+
+function wasSessionRecentlyVerified(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = sessionStorage.getItem(AUTH_VERIFIED_AT_KEY);
+    if (!raw) return false;
+    const ts = Number(raw);
+    return Number.isFinite(ts) && Date.now() - ts < AUTH_REVALIDATE_TTL_MS;
+  } catch {
+    return false;
+  }
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const refreshSession = useCallback(async () => {
+  const refreshSession = useCallback(async (force = true) => {
     const token = getStoredToken();
     if (!token) {
       setCachedUser(null);
@@ -44,6 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (cached) {
       setUser(cached);
       setLoading(false);
+      if (!force && wasSessionRecentlyVerified()) {
+        return;
+      }
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        return;
+      }
     }
 
     try {
@@ -51,20 +81,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data?.user) {
         setUser(data.user);
         setCachedUser(data.user);
+        markSessionVerifiedNow();
       } else {
         clearStoredToken();
         setUser(null);
       }
-    } catch {
-      clearStoredToken();
-      setUser(null);
+    } catch (err: any) {
+      // Só encerra sessão se for rejeição explícita (401); em erro de rede offline preserva o cache.
+      if (err?.status === 401 || !cached) {
+        clearStoredToken();
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refreshSession();
+    void refreshSession(false);
   }, [refreshSession]);
 
   // Interceptor global de sessão revogada / token inválido
@@ -100,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setStoredToken(data.token);
       setCachedUser(data.user);
+      markSessionVerifiedNow();
       invalidateApiCache();
       setUser(data.user);
       return data.user;
@@ -122,6 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setStoredToken(data.token);
       setCachedUser(data.user);
+      markSessionVerifiedNow();
       invalidateApiCache();
       setUser(data.user);
       return data.user;

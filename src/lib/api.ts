@@ -25,19 +25,69 @@ import {
 
 const TOKEN_KEY = "cattle_vision_jwt_token";
 const USER_CACHE_KEY = "cattle_vision_user_cache";
+const SESSION_API_CACHE_PREFIX = "cv_api_cache:";
 
-/** Cache em memória estilo stale-while-revalidate para navegação instantânea entre rotas */
+/** Cache em memória + sessionStorage estilo stale-while-revalidate para navegação instantânea */
 const responseCache = new Map<string, { data: unknown; timestamp: number }>();
 const inflightRequests = new Map<string, Promise<unknown>>();
+
+function readSessionApiCache(cleanEndpoint: string): { data: unknown; timestamp: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(`${SESSION_API_CACHE_PREFIX}${cleanEndpoint}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: unknown; timestamp: number };
+    if (!parsed || typeof parsed.timestamp !== "number") return null;
+    responseCache.set(cleanEndpoint, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionApiCache(cleanEndpoint: string, data: unknown, timestamp: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const serialized = JSON.stringify({ data, timestamp });
+    if (serialized.length > 450_000) return;
+    sessionStorage.setItem(`${SESSION_API_CACHE_PREFIX}${cleanEndpoint}`, serialized);
+  } catch {
+    // Ignora limite de quota
+  }
+}
 
 export function invalidateApiCache(prefix?: string): void {
   if (!prefix) {
     responseCache.clear();
+    if (typeof window !== "undefined") {
+      try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith(SESSION_API_CACHE_PREFIX)) {
+            sessionStorage.removeItem(k);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
     return;
   }
   for (const key of responseCache.keys()) {
     if (key.startsWith(prefix)) {
       responseCache.delete(key);
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith(`${SESSION_API_CACHE_PREFIX}${prefix}`)) {
+          sessionStorage.removeItem(k);
+        }
+      }
+    } catch {
+      // ignore
     }
   }
 }
@@ -87,14 +137,17 @@ export class ApiError extends Error {
  * Obtém a URL base do backend configurada.
  */
 export function getApiUrl(): string {
+  if (typeof window !== "undefined") {
+    // Em dev local (porta 3000 -> 3001), conecta direto na porta local;
+    // em producao/HTTPS usa proxy same-origin (/api/* via next.config.ts) para eliminar
+    // preflight OPTIONS e segundo handshake TLS em cada rota dinamica.
+    if (window.location.port === "3000") {
+      return `${window.location.protocol}//${window.location.hostname}:3001`;
+    }
+    return "";
+  }
   if (typeof process.env.NEXT_PUBLIC_API_URL === "string" && process.env.NEXT_PUBLIC_API_URL.trim() !== "") {
     return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
-  }
-  if (typeof window !== "undefined") {
-    // Se estiver no browser e não tiver env, verifica se há variável injetada ou fallback local
-    return window.location.port === "3000"
-      ? `${window.location.protocol}//${window.location.hostname}:3001`
-      : "";
   }
   return "http://localhost:3001";
 }
@@ -131,7 +184,8 @@ export function clearStoredToken(): void {
   try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_CACHE_KEY);
-    responseCache.clear();
+    invalidateApiCache();
+    sessionStorage.removeItem("cv_auth_verified_at");
     // Limpeza de tokens legados caso existam
     localStorage.removeItem("cv_token");
     localStorage.removeItem("token");
@@ -232,7 +286,7 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
  */
 export function getApiCacheSnapshot<T = any>(endpoint: string): T | null {
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  const entry = responseCache.get(cleanEndpoint);
+  const entry = responseCache.get(cleanEndpoint) ?? readSessionApiCache(cleanEndpoint);
   return entry ? (entry.data as T) : null;
 }
 
@@ -241,7 +295,7 @@ export async function apiFetchCached<T = any>(
   ttlMs = 15_000
 ): Promise<T> {
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  const cached = responseCache.get(cleanEndpoint);
+  const cached = responseCache.get(cleanEndpoint) ?? readSessionApiCache(cleanEndpoint);
   if (cached && Date.now() - cached.timestamp < ttlMs) {
     return cached.data as T;
   }
@@ -253,7 +307,9 @@ export async function apiFetchCached<T = any>(
 
   const promise = apiFetch<T>(cleanEndpoint)
     .then((data) => {
-      responseCache.set(cleanEndpoint, { data, timestamp: Date.now() });
+      const now = Date.now();
+      responseCache.set(cleanEndpoint, { data, timestamp: now });
+      writeSessionApiCache(cleanEndpoint, data, now);
       return data;
     })
     .finally(() => {
@@ -262,6 +318,12 @@ export async function apiFetchCached<T = any>(
 
   inflightRequests.set(cleanEndpoint, promise);
   return promise;
+}
+
+/** Pre-aquece em background a rota GET caso nao haja cache recente */
+export function prefetchApi(endpoint: string, ttlMs = 15_000): void {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return;
+  void apiFetchCached(endpoint, ttlMs).catch(() => {});
 }
 
 /**

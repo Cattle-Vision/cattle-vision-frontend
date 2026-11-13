@@ -4,7 +4,11 @@ import type { NextConfig } from "next";
  * Configuração do Next.js para o Frontend (cattle-vision-frontend)
  * Otimizado para Vercel e containers Docker.
  */
-const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.INTERNAL_API_URL || "http://localhost:3001";
+const backendUrl = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.INTERNAL_API_URL ||
+  "http://localhost:3001"
+).replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -27,11 +31,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Proxy de desenvolvimento/produção para o backend quando requisitado via mesmo domínio
+  // Proxy no mesmo dominio para evitar preflight CORS (OPTIONS) e segundo handshake TLS em producao
   async rewrites() {
     return [
       {
         source: "/api/backend/:path*",
+        destination: `${backendUrl}/api/:path*`,
+      },
+      {
+        source: "/api/:path*",
         destination: `${backendUrl}/api/:path*`,
       },
     ];
