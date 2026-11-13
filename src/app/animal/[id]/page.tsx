@@ -51,6 +51,7 @@ import {
   apiUpload,
   getApiCacheSnapshot,
   invalidateApiCache,
+  readPersistedApiCache,
   recalibratePhotosSequentially,
   addCollaborator,
   removeCollaborator,
@@ -232,8 +233,15 @@ export default function AnimalProfilePage() {
   );
 
   useEffect(() => {
+    if (id && !cachedAnimal) {
+      const persisted = readPersistedApiCache<Animal>(`/api/animals/${id}`);
+      if (persisted) {
+        setAnimal(persisted);
+        setLoading(false);
+      }
+    }
     loadAnimal(false);
-  }, [loadAnimal]);
+  }, [id, cachedAnimal, loadAnimal]);
 
   const copyRfid = () => {
     if (!animal) return;

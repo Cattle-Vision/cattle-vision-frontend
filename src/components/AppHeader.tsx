@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import ThemeToggle from "@/components/ThemeToggle";
-import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 import { BrandMark } from "@/components/BrandMark";
 
 export interface AppHeaderProps {
@@ -162,16 +161,9 @@ export function AppHeader({
           )}
         </nav>
 
-        {/* Lado Direito: Ações contextuais da página, tema (desktop), instalação PWA e Perfil do Operador */}
+        {/* Lado Direito: Ações contextuais da página, tema (desktop) e Perfil do Operador */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {actions}
-
-          <div className="hidden sm:block">
-            <PwaInstallPrompt variant="button" />
-          </div>
-          <div className="sm:hidden">
-            <PwaInstallPrompt variant="icon" />
-          </div>
 
           <div className="hidden sm:block">
             <ThemeToggle />

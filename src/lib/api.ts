@@ -284,7 +284,22 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
  * Leitura GET com cache em memória (SWR) e deduplicação de requisições concorrentes.
  * Entrega imediatamente o cache local se disponível e revalida em segundo plano quando expirado.
  */
+/**
+ * Leitura síncrona segura para SSR/Hidratação: lê apenas `responseCache` em RAM
+ * (vazio no SSR e no 1º render do reload; preenchido na navegação SPA),
+ * evitando erro de hidratação React #418.
+ */
 export function getApiCacheSnapshot<T = any>(endpoint: string): T | null {
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const entry = responseCache.get(cleanEndpoint);
+  return entry ? (entry.data as T) : null;
+}
+
+/**
+ * Hidratação pós-montagem (`useEffect`): lê o snapshot persistido em `sessionStorage`
+ * com segurança após a hidratação React.
+ */
+export function readPersistedApiCache<T = any>(endpoint: string): T | null {
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const entry = responseCache.get(cleanEndpoint) ?? readSessionApiCache(cleanEndpoint);
   return entry ? (entry.data as T) : null;

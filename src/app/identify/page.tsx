@@ -27,7 +27,12 @@ import {
 } from "lucide-react";
 import { normalizeTag } from "@/lib/animal";
 import { Animal, RfidScanResult } from "@/lib/types";
-import { apiFetchCached, getApiCacheSnapshot, scanRfidTag } from "@/lib/api";
+import {
+  apiFetchCached,
+  getApiCacheSnapshot,
+  readPersistedApiCache,
+  scanRfidTag,
+} from "@/lib/api";
 import { bluetoothRfid, BluetoothStatus, RfidEventDetail } from "@/lib/bluetooth-rfid";
 import AppHeader from "@/components/AppHeader";
 import MobileNav from "@/components/MobileNav";
@@ -52,6 +57,12 @@ export default function IdentifyPage() {
   const [simulatedTag, setSimulatedTag] = useState("");
 
   useEffect(() => {
+    if (!cachedAnimals) {
+      const persisted = readPersistedApiCache<Animal[]>(ANIMALS_SUMMARY_ENDPOINT);
+      if (Array.isArray(persisted)) {
+        setAllAnimals(persisted);
+      }
+    }
     apiFetchCached<Animal[]>(ANIMALS_SUMMARY_ENDPOINT, 15_000)
       .then((d) => {
         if (Array.isArray(d)) setAllAnimals(d);

@@ -39,6 +39,7 @@ import {
   getApiCacheSnapshot,
   invalidateApiCache,
   prefetchApi,
+  readPersistedApiCache,
   recalibratePhotosSequentially,
 } from "@/lib/api";
 import { getHerdSnapshot, saveHerdSnapshot } from "@/lib/sync";
@@ -363,14 +364,20 @@ export default function DashboardPage() {
         router.push("/login");
       } else {
         if (!Array.isArray(initialSnapshot)) {
-          getHerdSnapshot<Animal[]>("herd_summary")
-            .then((offlineList) => {
-              if (Array.isArray(offlineList) && offlineList.length > 0) {
-                setAnimals((prev) => (prev.length === 0 ? offlineList : prev));
-                setLoading(false);
-              }
-            })
-            .catch(() => {});
+          const persisted = readPersistedApiCache<Animal[]>(ANIMALS_SUMMARY_ENDPOINT);
+          if (Array.isArray(persisted) && persisted.length > 0) {
+            setAnimals(persisted);
+            setLoading(false);
+          } else {
+            getHerdSnapshot<Animal[]>("herd_summary")
+              .then((offlineList) => {
+                if (Array.isArray(offlineList) && offlineList.length > 0) {
+                  setAnimals((prev) => (prev.length === 0 ? offlineList : prev));
+                  setLoading(false);
+                }
+              })
+              .catch(() => {});
+          }
         }
         loadAnimals(false);
       }

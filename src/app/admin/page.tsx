@@ -32,6 +32,7 @@ import {
   invalidateApiCache,
   getApiUrl,
   getStoredToken,
+  readPersistedApiCache,
   recalibratePhotosSequentially,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
@@ -135,6 +136,19 @@ export default function AdminPage() {
       } else if (!isAdmin) {
         router.push('/dashboard');
       } else {
+        if (!Array.isArray(cachedAnimals)) {
+          const persistedAnimals = readPersistedApiCache<AnimalWithOwner[]>('/api/admin/animals');
+          if (Array.isArray(persistedAnimals)) {
+            setAnimals(persistedAnimals);
+            setLoading(false);
+          }
+        }
+        if (!Array.isArray(cachedUsers)) {
+          const persistedUsers = readPersistedApiCache<AdminUserRow[]>('/api/admin/users');
+          if (Array.isArray(persistedUsers)) {
+            setUsers(persistedUsers);
+          }
+        }
         loadData();
       }
     }
