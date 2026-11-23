@@ -22,6 +22,7 @@ import {
   Trash2,
   Database,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { AnimalWithOwner, getPhotoUrl } from '@/lib/types';
 import { AsyncPhoto } from '@/components/AsyncPhoto';
@@ -34,6 +35,8 @@ import {
   getStoredToken,
   readPersistedApiCache,
   recalibratePhotosSequentially,
+  enqueueAdminRegenerateIcs,
+  drainIcsQueue,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/Toast';
@@ -83,6 +86,11 @@ export default function AdminPage() {
   const [recalibrating, setRecalibrating] = useState(false);
   const [recalibratingProgress, setRecalibratingProgress] = useState<{
     current: number;
+    total: number;
+  } | null>(null);
+  const [regeneratingIcs, setRegeneratingIcs] = useState(false);
+  const [icsProgress, setIcsProgress] = useState<{
+    processed: number;
     total: number;
   } | null>(null);
 
@@ -263,6 +271,50 @@ export default function AdminPage() {
     } finally {
       setRecalibrating(false);
       setRecalibratingProgress(null);
+    }
+  };
+
+  const handleRegenerateAllIcs = async () => {
+    if (regeneratingIcs) return;
+    const totalPhotosCount = animals.reduce((acc, a) => acc + (a.photos?.length ?? 0), 0);
+    if (totalPhotosCount === 0) {
+      toast('Nenhuma foto encontrada no dataset para gerar ICS.', 'info');
+      return;
+    }
+
+    const ok = await confirm({
+      title: 'Regerar ICS de Todo o Dataset (Fila)',
+      message: `Deseja enviar todas as ${totalPhotosCount} foto(s) para a fila de inferência YOLO26m ICS no backend e iniciar o processamento sequencial?`,
+      confirmText: 'Enviar para Fila e Processar',
+      variant: 'primary',
+    });
+    if (!ok) return;
+
+    setRegeneratingIcs(true);
+    setIcsProgress({ processed: 0, total: totalPhotosCount });
+    try {
+      const enq = await enqueueAdminRegenerateIcs({ onlyMissing: false });
+      toast(enq.message || 'Fotos adicionadas à fila de ICS.', 'info');
+      const totalQueue = enq.queuedTotal || totalPhotosCount;
+      setIcsProgress({ processed: 0, total: totalQueue });
+
+      const drain = await drainIcsQueue({
+        maxSteps: Math.max(totalQueue + 10, 50),
+        onProgress: ({ processedCount, remainingQueued }) => {
+          const totalTracked = Math.max(totalQueue, processedCount + remainingQueued);
+          setIcsProgress({ processed: processedCount, total: totalTracked });
+        },
+      });
+
+      invalidateApiCache('/api/animals');
+      invalidateApiCache('/api/admin/animals');
+      await loadData(true);
+      toast(`ICS regerado em fila para ${drain.processedCount} captura(s)!`, 'success');
+    } catch (err: any) {
+      toast(err?.message || 'Erro ao regerar ICS na fila do servidor.', 'error');
+    } finally {
+      setRegeneratingIcs(false);
+      setIcsProgress(null);
     }
   };
 
@@ -481,7 +533,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="flex items-center gap-2 text-xs font-semibold text-theme-secondary select-none cursor-pointer bg-theme-surface border border-theme px-3 py-2 rounded-lg">
                   <input
                     type="checkbox"
@@ -493,25 +545,47 @@ export default function AdminPage() {
                 </label>
 
                 {stats.totalPhotos > 0 && (
-                  <button
-                    onClick={handleRecalibrateScores}
-                    disabled={recalibrating}
-                    className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5 border-emerald-500/30 hover:border-emerald-500/50"
-                    title="Recalcular confiança de todas as fotos usando o modelo de IA calibrado"
-                  >
-                    {recalibrating ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
-                    ) : (
-                      <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                    )}
-                    <span className="tabular-nums">
-                      {recalibrating
-                        ? recalibratingProgress
-                          ? `${recalibratingProgress.current}/${recalibratingProgress.total}…`
-                          : 'Recalculando…'
-                        : 'Recalcular Confiança'}
-                    </span>
-                  </button>
+                  <>
+                    <button
+                      onClick={handleRegenerateAllIcs}
+                      disabled={regeneratingIcs || recalibrating}
+                      className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5"
+                      title="Enviar todas as fotos do dataset para a fila do modelo YOLO26m ICS no servidor"
+                    >
+                      {regeneratingIcs ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5" />
+                      )}
+                      <span className="tabular-nums">
+                        {regeneratingIcs
+                          ? icsProgress
+                            ? `ICS ${icsProgress.processed}/${icsProgress.total}…`
+                            : 'Gerando ICS…'
+                          : 'Regerar ICS (Fila)'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={handleRecalibrateScores}
+                      disabled={recalibrating || regeneratingIcs}
+                      className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5 border-emerald-500/30 hover:border-emerald-500/50"
+                      title="Recalcular confiança de enquadramento de todas as fotos"
+                    >
+                      {recalibrating ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                      ) : (
+                        <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                      )}
+                      <span className="tabular-nums">
+                        {recalibrating
+                          ? recalibratingProgress
+                            ? `${recalibratingProgress.current}/${recalibratingProgress.total}…`
+                            : 'Recalculando…'
+                          : 'Recalcular Confiança'}
+                      </span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -558,13 +632,36 @@ export default function AdminPage() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
+                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                           <span className="font-mono-tag text-xs font-bold px-2 py-0.5 rounded-md bg-slate-900 dark:bg-emerald-950 text-white dark:text-emerald-300">
                             {animal.tag}
                           </span>
                           <span className="text-xs font-extrabold text-theme-primary truncate">
                             {animal.name || animal.breed}
                           </span>
+                          {(() => {
+                            const calcPhoto = photos.find(
+                              (p: any) => p.icsStatus === 'CALCULATED' && typeof p.icsScore === 'number'
+                            ) as any;
+                            const queued = photos.some(
+                              (p: any) => p.icsStatus === 'QUEUED' || p.icsStatus === 'PROCESSING'
+                            );
+                            if (calcPhoto) {
+                              return (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 tabular-nums">
+                                  ICS {Number(calcPhoto.icsScore).toFixed(2)}
+                                </span>
+                              );
+                            }
+                            if (queued) {
+                              return (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                                  ICS na fila
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
 
                         <p className="text-[11px] text-theme-secondary truncate">
@@ -822,6 +919,7 @@ export default function AdminPage() {
           photos={previewAnimal.photos}
           initialIndex={0}
           onClose={() => setPreviewAnimal(null)}
+          onPhotoIcsUpdated={() => loadData(true)}
           onPhotoRecalibrated={(photoId, newScore) => {
             setPreviewAnimal((prev) =>
               prev

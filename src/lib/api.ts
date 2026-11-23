@@ -645,3 +645,133 @@ export async function deleteObservationRecord(
     { method: "DELETE" }
   );
 }
+
+export interface IcsQueueStatusResponse {
+  queuedCount: number;
+  processingCount: number;
+  animalQueuedCount: number | null;
+  animalProcessingCount: number | null;
+  jobs: Array<{
+    id: string;
+    photoId: string;
+    animalId: string;
+    status: string;
+    priority: number;
+    position: number | null;
+    createdAt: string;
+    startedAt: string | null;
+  }>;
+}
+
+export async function enqueuePhotoIcs(photoId: string): Promise<{
+  queued: boolean;
+  alreadyQueued?: boolean;
+  position: number;
+  totalQueued: number;
+  message: string;
+}> {
+  const res = await apiFetch(`/api/ics/queue/photo/${encodeURIComponent(photoId)}`, {
+    method: "POST",
+  });
+  invalidateApiCache("/api/animals");
+  return res;
+}
+
+export async function enqueueAnimalIcs(
+  animalId: string,
+  force = false
+): Promise<{
+  queuedCount: number;
+  alreadyInQueue?: number;
+  totalPhotos: number;
+  queuedTotal: number;
+  animalQueuedCount?: number;
+  message: string;
+}> {
+  const res = await apiFetch(`/api/ics/queue/animal/${encodeURIComponent(animalId)}`, {
+    method: "POST",
+    body: { force },
+  });
+  invalidateApiCache("/api/animals");
+  return res;
+}
+
+export async function enqueueAdminRegenerateIcs(options?: {
+  animalId?: string;
+  onlyMissing?: boolean;
+}): Promise<{
+  queuedCount: number;
+  alreadyInQueue?: number;
+  totalCount: number;
+  queuedTotal: number;
+  message: string;
+}> {
+  const res = await apiFetch("/api/admin/ics/regenerate", {
+    method: "POST",
+    body: options || {},
+  });
+  invalidateApiCache("/api/animals");
+  invalidateApiCache("/api/admin/animals");
+  return res;
+}
+
+export async function getIcsQueueStatus(animalId?: string): Promise<IcsQueueStatusResponse> {
+  const qs = animalId ? `?animalId=${encodeURIComponent(animalId)}` : "";
+  return apiFetch<IcsQueueStatusResponse>(`/api/ics/queue/status${qs}`);
+}
+
+export async function processNextIcsJob(animalId?: string): Promise<{
+  processed: boolean;
+  remainingQueued: number;
+  job?: { id: string; photoId: string; animalId: string; status: string };
+  ics?: { status: string; score: number | null; classification: string };
+  message: string;
+}> {
+  return apiFetch("/api/ics/queue/process", {
+    method: "POST",
+    body: animalId ? { animalId } : {},
+  });
+}
+
+/**
+ * Drena sequencialmente os jobs da fila persistente de ICS no backend (1 foto por requisição
+ * para respeitar o timeout e memória do ambiente Serverless do Vercel).
+ */
+export async function drainIcsQueue(options?: {
+  animalId?: string;
+  maxSteps?: number;
+  onProgress?: (info: {
+    processedCount: number;
+    remainingQueued: number;
+    lastPhotoId?: string;
+    lastScore?: number | null;
+    lastStatus?: string;
+  }) => void;
+}): Promise<{ processedCount: number; remainingQueued: number }> {
+  const maxSteps = options?.maxSteps ?? 200;
+  let processedCount = 0;
+  let remainingQueued = 0;
+
+  for (let step = 0; step < maxSteps; step += 1) {
+    const res = await processNextIcsJob(options?.animalId);
+    remainingQueued = res.remainingQueued ?? 0;
+    if (!res.processed) {
+      break;
+    }
+    processedCount += 1;
+    options?.onProgress?.({
+      processedCount,
+      remainingQueued,
+      lastPhotoId: res.job?.photoId,
+      lastScore: res.ics?.score ?? null,
+      lastStatus: res.ics?.status,
+    });
+    if (remainingQueued <= 0) {
+      break;
+    }
+  }
+
+  invalidateApiCache("/api/animals");
+  invalidateApiCache("/api/admin/animals");
+  return { processedCount, remainingQueued };
+}

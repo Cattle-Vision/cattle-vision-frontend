@@ -5,12 +5,13 @@ import type { NextConfig } from "next";
  * Otimizado para Vercel e containers Docker.
  */
 const backendUrl = (
-  process.env.NEXT_PUBLIC_API_URL ||
   process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:3001"
 ).replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   images: {
     remotePatterns: [

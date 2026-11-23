@@ -3,29 +3,156 @@
 /**
  * Painel de Avaliação Corporal (ICS), Contorno e Aptidão para Abate (`src/components/animal/AnimalIcsPanel.tsx`).
  *
- * Diretriz de transparência técnica:
- * - A IA neural de ICS (escala 1,0–5,0), extração de contorno corporal e aptidão para abate
- *   ainda está em desenvolvimento e NÃO está em execução no sistema atual.
- * - Nenhuma nota de ICS ou status de abate é simulado; enquanto `ics.status !== "CALCULATED"`,
- *   os campos permanecem explicitamente marcados como "Em desenvolvimento".
- * - Separa claramente a confiança de enquadramento (YOLO, 0–100%) do futuro índice ICS.
+ * Arquitetura:
+ * - Inferência executada exclusivamente no backend via modelo `YOLO26m` ONNX.
+ * - Como o modelo de ICS (~78 MB) é mais pesado, o processamento utiliza uma fila persistente
+ *   em PostgreSQL (`IcsJob`) no servidor: o usuário solicita a geração, visualiza sua posição
+ *   na fila e acompanha o cálculo em tempo real.
  */
-import { AlertTriangle, CheckCircle2, Clock, Eye } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Eye,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import { Animal, Photo } from "@/lib/types";
+import {
+  drainIcsQueue,
+  enqueueAnimalIcs,
+  enqueuePhotoIcs,
+  getIcsQueueStatus,
+  IcsQueueStatusResponse,
+} from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 interface AnimalIcsPanelProps {
   animal: Animal;
   photos: Photo[];
   onSelectPhoto?: (index: number) => void;
+  onAnimalUpdated?: () => void;
 }
 
 export default function AnimalIcsPanel({
   animal,
   photos,
   onSelectPhoto,
+  onAnimalUpdated,
 }: AnimalIcsPanelProps) {
+  const { toast } = useToast();
+  const [requesting, setRequesting] = useState(false);
+  const [processingPhotoId, setProcessingPhotoId] = useState<string | null>(null);
+  const [queueStatus, setQueueStatus] = useState<IcsQueueStatusResponse | null>(null);
+  const [progress, setProgress] = useState<{
+    processedCount: number;
+    remainingQueued: number;
+  } | null>(null);
+
   const ics = animal.ics;
   const isCalculated = ics?.status === "CALCULATED" && typeof ics.score === "number";
+
+  const hasQueuedOrProcessing = photos.some(
+    (p) => p.ics?.status === "QUEUED" || p.ics?.status === "PROCESSING"
+  );
+  const pendingPhotosCount = photos.filter((p) => p.ics?.status !== "CALCULATED").length;
+
+  const refreshQueueStatus = useCallback(async () => {
+    try {
+      const status = await getIcsQueueStatus(animal.id);
+      setQueueStatus(status);
+    } catch {
+      // Silencia erros intermitentes de consulta de status para não poluir a interface
+    }
+  }, [animal.id]);
+
+  useEffect(() => {
+    if (photos.length === 0) return;
+    if (hasQueuedOrProcessing || requesting) {
+      refreshQueueStatus();
+    }
+  }, [photos.length, hasQueuedOrProcessing, requesting, refreshQueueStatus]);
+
+  useEffect(() => {
+    if (!hasQueuedOrProcessing || requesting) return;
+    const interval = setInterval(() => {
+      refreshQueueStatus();
+      onAnimalUpdated?.();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [hasQueuedOrProcessing, requesting, refreshQueueStatus, onAnimalUpdated]);
+
+  const handleRequestAnimalIcs = async (force = false) => {
+    if (requesting || photos.length === 0) return;
+    setRequesting(true);
+    setProgress(null);
+    try {
+      const enq = await enqueueAnimalIcs(animal.id, force);
+      toast(enq.message || "Solicitação enviada para a fila de ICS.", "info");
+      await refreshQueueStatus();
+      onAnimalUpdated?.();
+
+      const drain = await drainIcsQueue({
+        animalId: animal.id,
+        onProgress: (info) => {
+          setProgress({
+            processedCount: info.processedCount,
+            remainingQueued: info.remainingQueued,
+          });
+          onAnimalUpdated?.();
+        },
+      });
+
+      await refreshQueueStatus();
+      onAnimalUpdated?.();
+
+      if (drain.processedCount > 0) {
+        toast(
+          `Avaliação de ICS concluída para ${drain.processedCount} captura(s)!`,
+          "success"
+        );
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao processar fila de ICS.";
+      toast(msg, "error");
+    } finally {
+      setRequesting(false);
+      setProgress(null);
+    }
+  };
+
+  const handleRequestPhotoIcs = async (photoId: string) => {
+    if (requesting || processingPhotoId) return;
+    setProcessingPhotoId(photoId);
+    try {
+      const enq = await enqueuePhotoIcs(photoId);
+      toast(
+        enq.message || `Foto enviada para a fila (posição #${enq.position}).`,
+        "info"
+      );
+      await refreshQueueStatus();
+      onAnimalUpdated?.();
+
+      await drainIcsQueue({
+        animalId: animal.id,
+        onProgress: () => {
+          onAnimalUpdated?.();
+        },
+      });
+
+      await refreshQueueStatus();
+      onAnimalUpdated?.();
+      toast("ICS da captura atualizado com sucesso!", "success");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao gerar ICS desta foto.";
+      toast(msg, "error");
+    } finally {
+      setProcessingPhotoId(null);
+    }
+  };
 
   // Calcula média apenas das capturas com score de enquadramento válido (YOLO)
   const validScores = photos
@@ -45,32 +172,128 @@ export default function AnimalIcsPanel({
       return tb - ta;
     });
 
+  const activeAnimalQueueJobs = (queueStatus?.jobs ?? []).filter(
+    (j) => j.animalId === animal.id
+  );
+  const firstQueuePosition = activeAnimalQueueJobs.find((j) => j.position)?.position;
+
   return (
     <div className="space-y-4">
-      {/* Banner obrigatório de status real da IA de ICS/Abate */}
-      {!isCalculated && (
-        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-            <AlertTriangle className="w-4 h-4" />
+      {/* Banner de status do motor YOLO26m e fila persistente de ICS */}
+      <div
+        className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          requesting || hasQueuedOrProcessing
+            ? "bg-blue-500/10 border-blue-500/30"
+            : isCalculated
+              ? "bg-emerald-500/10 border-emerald-500/30"
+              : ics?.status === "FAILED" || ics?.status === "ERROR"
+                ? "bg-amber-500/10 border-amber-500/30"
+                : "bg-theme-surface-2 border-theme"
+        }`}
+      >
+        <div className="flex items-start gap-3 min-w-0">
+          <div
+            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+              requesting || hasQueuedOrProcessing
+                ? "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                : isCalculated
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+            }`}
+          >
+            {requesting || hasQueuedOrProcessing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isCalculated ? (
+              <Sparkles className="w-4 h-4" />
+            ) : ics?.status === "FAILED" || ics?.status === "ERROR" ? (
+              <AlertTriangle className="w-4 h-4" />
+            ) : (
+              <Activity className="w-4 h-4" />
+            )}
           </div>
+
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-xs font-bold text-amber-800 dark:text-amber-300">
-                Avaliação de ICS e Abate por IA em desenvolvimento
+              <h3 className="text-xs font-bold text-theme-primary">
+                {requesting
+                  ? "Processando fila de ICS no servidor…"
+                  : hasQueuedOrProcessing
+                    ? "Captura(s) na fila de cálculo ICS"
+                    : isCalculated
+                      ? "IA de ICS (YOLO26m) ativa no servidor"
+                      : ics?.status === "FAILED" || ics?.status === "ERROR"
+                        ? "Não foi possível identificar o ICS automaticamente"
+                        : "Avaliação de ICS sob demanda (YOLO26m)"}
               </h3>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-300">
-                Modelo neural inativo
+              <span
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                  requesting || hasQueuedOrProcessing
+                    ? "bg-blue-500/20 text-blue-700 dark:text-blue-300"
+                    : isCalculated
+                      ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                      : "bg-theme-surface text-theme-secondary border border-theme"
+                }`}
+              >
+                {requesting && progress
+                  ? `Processadas: ${progress.processedCount} · Restantes: ${progress.remainingQueued}`
+                  : firstQueuePosition
+                    ? `Posição na fila: #${firstQueuePosition}`
+                    : isCalculated
+                      ? ics.aiModelVersion || "yolo26m-ics"
+                      : "Fila no backend"}
               </span>
             </div>
+
             <p className="text-[11px] text-theme-secondary mt-1 leading-relaxed">
-              {ics?.message ||
-                "A IA de avaliação do Índice de Condição Corporal (ICS 1,0–5,0), extração de contorno anatômico e aptidão para abate ainda não está implementada e não está em execução. As fotos ficam salvas e validadas por enquadramento para processamento futuro."}
+              {requesting
+                ? "Executando inferência do modelo YOLO26m no servidor (1 foto por etapa para estabilidade)."
+                : ics?.message ||
+                  "Como o modelo de ICS é mais pesado, as análises entram em uma fila persistente no backend."}
             </p>
           </div>
         </div>
-      )}
 
-      {/* Resumo comparativo: ICS futuro vs Enquadramento YOLO atual */}
+        {photos.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {pendingPhotosCount > 0 && (
+              <button
+                type="button"
+                onClick={() => handleRequestAnimalIcs(false)}
+                disabled={requesting || Boolean(processingPhotoId)}
+                className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5"
+              >
+                {requesting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {requesting
+                    ? "Processando fila…"
+                    : hasQueuedOrProcessing
+                      ? "Processar fila agora"
+                      : `Solicitar geração de ICS (${pendingPhotosCount})`}
+                </span>
+              </button>
+            )}
+
+            {isCalculated && (
+              <button
+                type="button"
+                onClick={() => handleRequestAnimalIcs(true)}
+                disabled={requesting || Boolean(processingPhotoId)}
+                className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5"
+                title="Enviar todas as fotos deste animal novamente para a fila de ICS"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${requesting ? "animate-spin" : ""}`} />
+                <span>Regerar ICS</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Resumo comparativo: ICS vs Enquadramento YOLO */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="p-3.5 rounded-xl bg-theme-surface-2 border border-theme">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-theme-muted block">
@@ -79,7 +302,7 @@ export default function AnimalIcsPanel({
           {isCalculated ? (
             <>
               <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums mt-1">
-                {ics.score?.toFixed(1)}
+                {ics.score?.toFixed(2)}
               </p>
               <p className="text-[11px] text-theme-secondary mt-0.5">
                 {ics.classification || "Classificação calculada"}
@@ -89,10 +312,16 @@ export default function AnimalIcsPanel({
             <>
               <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mt-1 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 shrink-0" />
-                Em desenvolvimento
+                {ics?.status === "QUEUED"
+                  ? "Na fila do servidor"
+                  : ics?.status === "PROCESSING"
+                    ? "Calculando…"
+                    : ics?.status === "FAILED" || ics?.status === "ERROR"
+                      ? "Não identificado"
+                      : "Não solicitado"}
               </p>
               <p className="text-[11px] text-theme-secondary mt-0.5">
-                Aguardando modelo neural
+                Solicite a geração para calcular
               </p>
             </>
           )}
@@ -120,12 +349,12 @@ export default function AnimalIcsPanel({
             </>
           ) : (
             <>
-              <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mt-1 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                Em desenvolvimento
+              <p className="text-sm font-bold text-theme-secondary mt-1 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 shrink-0 text-theme-muted" />
+                Aguardando ICS
               </p>
               <p className="text-[11px] text-theme-secondary mt-0.5">
-                Depende do motor de ICS
+                Calculado junto com o ICS
               </p>
             </>
           )}
@@ -163,7 +392,7 @@ export default function AnimalIcsPanel({
                   <th className="py-2 px-3 font-semibold">Enquadramento</th>
                   <th className="py-2 px-3 font-semibold">ICS</th>
                   <th className="py-2 px-3 font-semibold">Abate</th>
-                  <th className="py-2 px-3 font-semibold text-right">Foto</th>
+                  <th className="py-2 px-3 font-semibold text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-theme">
@@ -171,6 +400,9 @@ export default function AnimalIcsPanel({
                   const photoIcs = photo.ics;
                   const photoCalculated =
                     photoIcs?.status === "CALCULATED" && typeof photoIcs.score === "number";
+                  const photoQueued =
+                    photoIcs?.status === "QUEUED" || photoIcs?.status === "PROCESSING";
+                  const isBusy = processingPhotoId === photo.id;
                   const dateLabel = photo.createdAt
                     ? new Date(photo.createdAt).toLocaleString("pt-BR", {
                         dateStyle: "short",
@@ -203,11 +435,20 @@ export default function AnimalIcsPanel({
                       <td className="py-2 px-3 whitespace-nowrap">
                         {photoCalculated ? (
                           <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                            {photoIcs.score?.toFixed(1)} · {photoIcs.classification}
+                            {photoIcs.score?.toFixed(2)} · {photoIcs.classification}
+                          </span>
+                        ) : photoQueued ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            {photoIcs?.status === "PROCESSING" ? "Processando" : "Na fila"}
+                          </span>
+                        ) : photoIcs?.status === "FAILED" || photoIcs?.status === "ERROR" ? (
+                          <span className="text-[11px] font-medium text-rose-500">
+                            Não identificado
                           </span>
                         ) : (
-                          <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                            Em desenvolvimento
+                          <span className="text-[11px] font-medium text-theme-muted">
+                            Não solicitado
                           </span>
                         )}
                       </td>
@@ -218,20 +459,43 @@ export default function AnimalIcsPanel({
                               (photoIcs.slaughterReady ? "Apto" : "Não apto")}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-theme-muted">Em desenvolvimento</span>
+                          <span className="text-[11px] text-theme-muted">—</span>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-right">
-                        {onSelectPhoto && (
+                      <td className="py-2 px-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-2.5">
                           <button
                             type="button"
-                            onClick={() => onSelectPhoto(originalIndex)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                            onClick={() => handleRequestPhotoIcs(photo.id)}
+                            disabled={requesting || Boolean(processingPhotoId)}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                            title={
+                              photoCalculated
+                                ? "Regerar ICS desta captura"
+                                : "Solicitar geração de ICS desta captura"
+                            }
                           >
-                            <Eye className="w-3 h-3" />
-                            Ver
+                            {isBusy ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : photoCalculated ? (
+                              <RefreshCw className="w-3 h-3" />
+                            ) : (
+                              <Sparkles className="w-3 h-3" />
+                            )}
+                            {photoCalculated ? "Regerar" : "Gerar ICS"}
                           </button>
-                        )}
+
+                          {onSelectPhoto && (
+                            <button
+                              type="button"
+                              onClick={() => onSelectPhoto(originalIndex)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Ver
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

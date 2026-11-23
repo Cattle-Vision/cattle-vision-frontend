@@ -917,6 +917,7 @@ export default function AnimalProfilePage() {
                     animal={animal}
                     photos={photos}
                     onSelectPhoto={(idx) => setLightboxIndex(idx)}
+                    onAnimalUpdated={() => loadAnimal(true)}
                   />
 
                   <div className="card p-4 sm:p-5">
@@ -1315,6 +1316,7 @@ export default function AnimalProfilePage() {
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onPhotoRecalibrated={handlePhotoRecalibrated}
+          onPhotoIcsUpdated={() => loadAnimal(true)}
         />
       )}
     </div>

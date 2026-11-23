@@ -22,7 +22,14 @@ export type SlaughterStatus = "IN_DEVELOPMENT" | "READY" | "NOT_READY";
 
 export interface IcsData {
   aiAvailable?: boolean;
-  status: "IN_DEVELOPMENT" | "CALCULATED" | "ERROR";
+  status:
+    | "IN_DEVELOPMENT"
+    | "NOT_REQUESTED"
+    | "QUEUED"
+    | "PROCESSING"
+    | "CALCULATED"
+    | "FAILED"
+    | "ERROR";
   score?: number | null;
   scale?: string;
   classification?: string;
@@ -111,7 +118,8 @@ export interface AnimalObservation {
   title?: string | null;
   content: string;
   observedAt: string;
-  recordedById?: number | null;
+  createdById?: number | null;
+  createdByName?: string;
   createdAt: string;
   updatedAt: string;
 }

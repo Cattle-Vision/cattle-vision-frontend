@@ -4,9 +4,9 @@
  * PhotoLightbox — Visualizador fullscreen de fotos (`src/components/PhotoLightbox.tsx`).
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2, Sparkles } from 'lucide-react';
 import { Photo, getPhotoUrl } from '@/lib/types';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, enqueuePhotoIcs, invalidateApiCache, processNextIcsJob } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 
 interface PhotoLightboxProps {
@@ -14,12 +14,20 @@ interface PhotoLightboxProps {
   initialIndex: number;
   onClose: () => void;
   onPhotoRecalibrated?: (photoId: string, newScore: number) => void;
+  onPhotoIcsUpdated?: (photoId: string) => void;
 }
 
-export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRecalibrated }: PhotoLightboxProps) {
+export default function PhotoLightbox({
+  photos,
+  initialIndex,
+  onClose,
+  onPhotoRecalibrated,
+  onPhotoIcsUpdated,
+}: PhotoLightboxProps) {
   const [localPhotos, setLocalPhotos] = useState<Photo[]>(photos);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [recalibrating, setRecalibrating] = useState(false);
+  const [generatingIcs, setGeneratingIcs] = useState(false);
   const [imgStatus, setImgStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const { toast } = useToast();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -113,6 +121,77 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
     }
   };
 
+  const handleGenerateCurrentIcs = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (generatingIcs || !currentPhoto) return;
+    const targetPhotoId = currentPhoto.id;
+    setGeneratingIcs(true);
+    try {
+      const enq = await enqueuePhotoIcs(targetPhotoId);
+      setLocalPhotos((prev) =>
+        prev.map((p) =>
+          p.id === targetPhotoId
+            ? {
+                ...p,
+                ics: {
+                  ...(p.ics || {
+                    scale: '1.0 - 5.0',
+                    classification: 'Na fila',
+                    slaughterReady: null,
+                    slaughterStatus: 'IN_DEVELOPMENT',
+                    slaughterLabel: 'Na fila',
+                    slaughterReason: enq.message,
+                    morphologicalFeatures: null,
+                    contourPoints: null,
+                    aiModelVersion: null,
+                    message: enq.message,
+                    source: 'internal-backend',
+                    estimatedAt: new Date().toISOString(),
+                  }),
+                  status: 'QUEUED',
+                },
+              }
+            : p
+        )
+      );
+      toast(enq.message || `Foto na fila (posição #${enq.position}).`, 'info');
+
+      for (let i = 0; i < 60; i += 1) {
+        const step = await processNextIcsJob(currentPhoto.animalId);
+        if (!step.processed) break;
+        if (step.job?.photoId === targetPhotoId && step.ics) {
+          const updatedIcs = step.ics as any;
+          setLocalPhotos((prev) =>
+            prev.map((p) =>
+              p.id === targetPhotoId
+                ? {
+                    ...p,
+                    ics: updatedIcs,
+                    contourPoints: updatedIcs.contourPoints ?? p.contourPoints,
+                  }
+                : p
+            )
+          );
+          invalidateApiCache('/api/animals');
+          invalidateApiCache('/api/admin/animals');
+          onPhotoIcsUpdated?.(targetPhotoId);
+          toast(
+            typeof updatedIcs.score === 'number'
+              ? `ICS calculado: ${updatedIcs.score.toFixed(2)} (${updatedIcs.classification})`
+              : updatedIcs.message || 'Processamento de ICS finalizado.',
+            updatedIcs.status === 'CALCULATED' ? 'success' : 'info'
+          );
+          break;
+        }
+        if (step.remainingQueued <= 0) break;
+      }
+    } catch (err: any) {
+      toast(err?.message || 'Erro ao solicitar geração de ICS.', 'error');
+    } finally {
+      setGeneratingIcs(false);
+    }
+  };
+
   return (
     <dialog
       ref={dialogRef}
@@ -140,16 +219,46 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
           {currentPhoto.ics?.status === 'CALCULATED' &&
           typeof currentPhoto.ics.score === 'number' ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-200 border border-blue-400/30">
-              ICS: {currentPhoto.ics.score.toFixed(1)} · {currentPhoto.ics.classification}
+              ICS: {currentPhoto.ics.score.toFixed(2)} · {currentPhoto.ics.classification}
+            </span>
+          ) : currentPhoto.ics?.status === 'QUEUED' || currentPhoto.ics?.status === 'PROCESSING' ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-200 border border-blue-400/30">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              {currentPhoto.ics?.status === 'PROCESSING' ? 'Calculando ICS…' : 'ICS: Na fila'}
+            </span>
+          ) : currentPhoto.ics?.status === 'FAILED' || currentPhoto.ics?.status === 'ERROR' ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-200 border border-rose-400/30">
+              ICS: Não identificado
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/30">
-              ICS e Contorno: Em desenvolvimento
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/10 text-white/80 border border-white/20">
+              ICS: Aguardando solicitação
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleGenerateCurrentIcs}
+            disabled={generatingIcs}
+            aria-label="Gerar ICS"
+            className="bg-blue-600/80 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-md transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[38px]"
+            title="Solicitar cálculo de ICS desta foto na fila do servidor"
+          >
+            {generatingIcs ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-200" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+            )}
+            <span className="hidden xs:inline">
+              {generatingIcs
+                ? 'Na fila…'
+                : currentPhoto.ics?.status === 'CALCULATED'
+                  ? 'Regerar ICS'
+                  : 'Gerar ICS'}
+            </span>
+          </button>
           <button
             type="button"
             onClick={handleRecalibrateCurrent}
@@ -244,10 +353,10 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
         )}
       </div>
 
-      {/* Aviso transparente quando a IA de ICS ainda não executa */}
-      {currentPhoto.ics?.status !== 'CALCULATED' && (
+      {/* Aviso de processamento quando a foto está na fila de ICS */}
+      {(currentPhoto.ics?.status === 'QUEUED' || currentPhoto.ics?.status === 'PROCESSING') && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/65 border border-amber-400/25 text-[11px] text-amber-200/90 backdrop-blur-sm pointer-events-none whitespace-nowrap max-w-[90vw] truncate"
+          className="absolute left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/75 border border-blue-400/30 text-[11px] text-blue-200 backdrop-blur-sm pointer-events-none whitespace-nowrap max-w-[90vw] truncate"
           style={{
             bottom:
               photos.length > 1
@@ -255,7 +364,7 @@ export default function PhotoLightbox({ photos, initialIndex, onClose, onPhotoRe
                 : 'max(1rem, env(safe-area-inset-bottom))',
           }}
         >
-          IA de avaliação de ICS e contorno corporal em desenvolvimento (modelo neural inativo)
+          Calculando ICS no servidor (modelo YOLO26m ONNX)…
         </div>
       )}
 
