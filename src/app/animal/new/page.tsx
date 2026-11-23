@@ -1,12 +1,7 @@
 "use client";
 
 /**
- * Página de Cadastro de Novo Animal (`src/app/animal/new/page.tsx`).
- *
- * Funcionalidades:
- * - Priorização de Apelido/Nome do animal como principal campo de identificação de manejo.
- * - Pré-preenchimento automático de tags RFID lidas via ESP32 Bluetooth.
- * - Tratamento inteligente de duplicidade com adesão instantânea à Guarda Compartilhada.
+ * Cadastro de Novo Animal em Seções (`src/app/animal/new/page.tsx`).
  */
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -25,8 +20,7 @@ import { apiFetch } from "@/lib/api";
 import { enqueueSync } from "@/lib/sync";
 import { ObservationCategory } from "@/lib/types";
 import { bluetoothRfid, BluetoothStatus } from "@/lib/bluetooth-rfid";
-import AppHeader from "@/components/AppHeader";
-import MobileNav from "@/components/MobileNav";
+import AppShell from "@/components/AppShell";
 import FarmLocationFields from "@/components/FarmLocationFields";
 
 const OBSERVATION_CATEGORY_OPTIONS: { value: ObservationCategory; label: string }[] = [
@@ -77,10 +71,8 @@ function NewAnimalForm() {
     observations: "",
     observationCategory: "GERAL",
   });
-  // Quando o operador seleciona "Outra", armazenamos o nome livre da raça
   const [customBreed, setCustomBreed] = useState("");
 
-  // Suporte direto ao bastão leitor RFID Bluetooth ESP32 dentro do cadastro
   const [bleSupported, setBleSupported] = useState(true);
   const [bleStatus, setBleStatus] = useState<BluetoothStatus>("disconnected");
   const [bleDeviceName, setBleDeviceName] = useState("");
@@ -94,9 +86,7 @@ function NewAnimalForm() {
     const unsubStatus = bluetoothRfid.onStatusChange((status, devName, errMsg) => {
       setBleStatus(status);
       if (devName) setBleDeviceName(devName);
-      if (status === "error" && errMsg) {
-        toast(errMsg, "error");
-      }
+      if (status === "error" && errMsg) toast(errMsg, "error");
     });
 
     const unsubTag = bluetoothRfid.onTag((detail) => {
@@ -105,7 +95,7 @@ function NewAnimalForm() {
       setBleScannedNow(true);
       bluetoothRfid.playAudioFeedback("read");
       bluetoothRfid.triggerHaptic([80, 40, 80]);
-      toast(`Tag lida via Bluetooth: ${normalized}`, "success");
+      toast(`Código lido via Bluetooth: ${normalized}`, "success");
     });
 
     return () => {
@@ -120,9 +110,7 @@ function NewAnimalForm() {
       return;
     }
     const ok = await bluetoothRfid.connect();
-    if (ok) {
-      toast("Leitor RFID conectado! Aproxime a tag para preencher o código.", "success");
-    }
+    if (ok) toast("Leitor conectado. Aproxime do brinco para preencher.", "success");
   };
 
   const setField = (field: keyof AnimalFormState, value: string) => {
@@ -145,7 +133,7 @@ function NewAnimalForm() {
       formData.breed === "Outra" ? customBreed.trim() : formData.breed.trim();
 
     if (!isValidTag(tag)) {
-      toast("Informe uma tag RFID ou brinco válido (mínimo 2 caracteres).", "error");
+      toast("Informe um brinco ou identificador válido (mínimo 2 caracteres).", "error");
       return;
     }
     if (!effectiveBreed) {
@@ -166,7 +154,7 @@ function NewAnimalForm() {
       return;
     }
     if (formData.length.trim() !== "" && Number(formData.length) <= 0) {
-      toast("O comprimento corporal em cm deve ser maior que zero.", "error");
+      toast("O comprimento em cm deve ser maior que zero.", "error");
       return;
     }
 
@@ -189,7 +177,6 @@ function NewAnimalForm() {
     setLoading(true);
     setGoToCamera(openCameraAfter);
 
-    // Suporte offline: enfileira cadastro no IndexedDB quando sem conexão (RNF07)
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       try {
         await enqueueSync(
@@ -199,27 +186,20 @@ function NewAnimalForm() {
           false,
           `Cadastro ${payload.name || tag}`
         );
-        toast(
-          "Sem internet: ficha salva localmente e será sincronizada assim que houver conexão.",
-          "info"
-        );
+        toast("Sem internet: ficha salva localmente para sincronização.", "info");
         router.push("/dashboard");
         return;
       } catch {
-        toast("Não foi possível salvar o cadastro na fila offline.", "error");
+        toast("Não foi possível salvar na fila offline.", "error");
         setLoading(false);
         return;
       }
     }
 
     try {
-      const data = await apiFetch<any>("/api/animals", {
-        method: "POST",
-        body: payload,
-      });
-
+      const data = await apiFetch<any>("/api/animals", { method: "POST", body: payload });
       if (data?.id) {
-        toast("Animal cadastrado com sucesso (Propriedade Principal)!", "success");
+        toast("Animal cadastrado com sucesso.", "success");
         const label = data.name || data.tag || tag;
         if (openCameraAfter) {
           router.push(`/camera?animalId=${data.id}&animalName=${encodeURIComponent(label)}`);
@@ -229,7 +209,6 @@ function NewAnimalForm() {
         return;
       }
     } catch (err: any) {
-      // Se caiu a conexão durante o envio, persiste na fila offline
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         await enqueueSync(
           "/api/animals",
@@ -242,9 +221,8 @@ function NewAnimalForm() {
         router.push("/dashboard");
         return;
       }
-      // Se já existia e o backend concedeu guarda compartilhada:
       if (err?.data?.sharedGranted && err?.data?.id) {
-        toast(err.message || "Animal já existente. Guarda Compartilhada ativada!", "info");
+        toast(err.message || "Animal já cadastrado. Guarda compartilhada ativada.", "info");
         router.push(`/animal/${err.data.id}`);
         return;
       }
@@ -259,353 +237,324 @@ function NewAnimalForm() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary pb-24 sm:pb-8">
-      <AppHeader
-        showBack
-        backHref="/dashboard"
-        title="Novo animal"
-        subtitle="Cadastro no rebanho"
-      />
-
-      <main className="flex-1 p-4 sm:p-6">
-        <div className="max-w-2xl mx-auto">
-          <form
-            onSubmit={(e) => handleSubmit(e, true)}
-            className="card p-5 sm:p-6 flex flex-col gap-5"
-          >
-            {/* Leitura via Bluetooth */}
-            <div className="p-3.5 card-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div
-                  className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${
-                    bleStatus === "connected"
-                      ? "bg-emerald-600 text-white"
-                      : bleStatus === "connecting"
-                        ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
-                        : "bg-theme-surface text-emerald-700 dark:text-emerald-400 border border-theme"
-                  }`}
-                >
-                  {bleStatus === "connected" ? (
-                    <BluetoothConnected className="w-4 h-4" />
-                  ) : (
-                    <Bluetooth className="w-4 h-4" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-theme-primary truncate">
-                    {bleStatus === "connected"
-                      ? `Leitor conectado (${bleDeviceName || "Bluetooth"})`
-                      : bleStatus === "connecting"
-                        ? "Conectando ao leitor…"
-                        : "Ler brinco via Bluetooth"}
-                  </p>
-                  <p className="text-[11px] text-theme-secondary truncate">
-                    {!bleSupported
-                      ? "Navegador sem suporte a leitura direta por Bluetooth."
-                      : bleStatus === "connected"
-                        ? bleScannedNow
-                          ? "Código lido e preenchido abaixo."
-                          : "Aproxime o leitor do brinco para preencher automaticamente."
-                        : "Conecte o bastão para preencher o código sem digitar."}
-                  </p>
-                </div>
-              </div>
-
-              {bleSupported && (
-                <button
-                  type="button"
-                  onClick={handleToggleBle}
-                  disabled={bleStatus === "connecting"}
-                  className={`${
-                    bleStatus === "connected" ? "btn-secondary" : "btn-primary"
-                  } !py-2 !px-3 !min-h-[36px] text-xs shrink-0`}
-                >
-                  {bleStatus === "connecting" ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Bluetooth className="w-3.5 h-3.5" />
-                  )}
-                  <span>{bleStatus === "connected" ? "Desconectar" : "Conectar leitor"}</span>
-                </button>
-              )}
+    <AppShell
+      showBack
+      backHref="/dashboard"
+      title="Cadastrar animal"
+      subtitle="Preencha os dados para abrir a ficha"
+      maxWidth="md"
+    >
+      <form onSubmit={(e) => handleSubmit(e, true)} className="space-y-5">
+        {/* Seção 1: Identificação */}
+        <section className="card p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3 pb-3 border-b border-theme">
+            <div>
+              <h2 className="text-sm font-bold text-theme-primary">1. Identificação</h2>
+              <p className="text-xs text-theme-secondary">Apelido de campo e brinco oficial</p>
             </div>
-
-            {initialTag && (
-              <div className="p-3 rounded-[10px] bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300">
-                <Tag className="w-4 h-4 shrink-0" />
+            {bleSupported && (
+              <button
+                type="button"
+                onClick={handleToggleBle}
+                disabled={bleStatus === "connecting"}
+                className={`${
+                  bleStatus === "connected" ? "btn-secondary" : "btn-secondary"
+                } !py-1.5 !px-3 !min-h-[36px] text-xs shrink-0`}
+              >
+                {bleStatus === "connecting" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : bleStatus === "connected" ? (
+                  <BluetoothConnected className="w-3.5 h-3.5 text-brand" />
+                ) : (
+                  <Bluetooth className="w-3.5 h-3.5 text-brand" />
+                )}
                 <span>
-                  Código <strong>{initialTag.length > 14 ? `${initialTag.slice(0, 8)}…` : initialTag}</strong> preenchido da consulta anterior.
+                  {bleStatus === "connected"
+                    ? `Conectado (${bleDeviceName || "BLE"})`
+                    : bleScannedNow
+                      ? "Leitor ativo"
+                      : "Ler via Bluetooth"}
                 </span>
-              </div>
+              </button>
             )}
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="field-label" htmlFor="name-field">
-                  Apelido ou nome
-                </label>
-                <input
-                  id="name-field"
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setField("name", e.target.value)}
-                  className="field-input text-sm font-semibold"
-                  placeholder="Ex: Mimosa, Estrela, Lote 42"
-                  autoFocus={!initialTag}
-                  autoComplete="off"
-                />
-                <p className="text-[11px] text-theme-secondary mt-1">
-                  Facilita encontrar o animal no dia a dia.
-                </p>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="field-label !mb-0" htmlFor="tag-field">
-                    Brinco ou identificador <span className="text-red-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={generateSampleTag}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
-                  >
-                    <Shuffle className="w-3 h-3" />
-                    <span>Gerar código</span>
-                  </button>
-                </div>
-                <input
-                  id="tag-field"
-                  type="text"
-                  value={formData.tag}
-                  onChange={(e) => {
-                    setBleScannedNow(false);
-                    setField("tag", e.target.value.toUpperCase());
-                  }}
-                  className="field-input font-mono-tag text-xs tracking-wider uppercase font-semibold"
-                  placeholder="Ex: NEL-0142 ou código lido"
-                  required
-                  autoComplete="off"
-                />
-                <p className="text-[11px] text-theme-secondary mt-1">
-                  Número do brinco visual ou código eletrônico.
-                </p>
-              </div>
+          {initialTag && (
+            <div className="p-3 rounded-[10px] bg-brand-soft flex items-center gap-2.5 text-xs">
+              <Tag className="w-4 h-4 shrink-0" />
+              <span>
+                Código preenchido: <strong>{initialTag.length > 16 ? `${initialTag.slice(0, 10)}…` : initialTag}</strong>
+              </span>
             </div>
+          )}
 
-            {/* Raça */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="field-label">
-                Raça <span className="text-red-500">*</span>
+              <label className="field-label" htmlFor="name-field">
+                Apelido ou nome
               </label>
-              <div className="flex flex-wrap gap-2">
-                {BREEDS.map((breed) => {
-                  const active = formData.breed === breed;
-                  return (
-                    <button
-                      key={breed}
-                      type="button"
-                      onClick={() => setField("breed", breed)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                        active
-                          ? "bg-emerald-600 text-white border-emerald-600"
-                          : "bg-theme-surface-2 text-theme-secondary border-theme hover:text-theme-primary"
-                      }`}
-                    >
-                      {breed}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {formData.breed === "Outra" && (
-                <div className="mt-3">
-                  <label className="field-label" htmlFor="custom-breed-field">
-                    Qual raça? <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="custom-breed-field"
-                    type="text"
-                    required
-                    value={customBreed}
-                    onChange={(e) => setCustomBreed(e.target.value)}
-                    placeholder="Digite o nome da raça (ex: Simental, Tabapuã, Guzerá)"
-                    className="field-input text-sm"
-                    autoFocus
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Sexo */}
-            <div>
-              <label className="field-label">
-                Sexo <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {SEX_OPTIONS.map((opt) => {
-                  const active = formData.sex === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setField("sex", opt.value)}
-                      className={`p-3 rounded-lg border text-left transition flex items-center justify-between ${
-                        active
-                          ? "bg-emerald-500/10 border-emerald-600 text-theme-primary"
-                          : "bg-theme-surface-2 border-theme text-theme-secondary hover:text-theme-primary"
-                      }`}
-                    >
-                      <div>
-                        <p className="text-sm font-bold text-theme-primary">{opt.value}</p>
-                        <p className="text-xs text-theme-secondary mt-0.5">{opt.label}</p>
-                      </div>
-                      <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                          active
-                            ? "bg-emerald-600 text-white"
-                            : "border border-theme"
-                        }`}
-                      >
-                        {active && <Check className="w-3 h-3" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Peso, Idade e Comprimento Corporal */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="field-label" htmlFor="weight-field">
-                  Peso estimado (kg) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="weight-field"
-                  type="number"
-                  value={formData.weight}
-                  onChange={(e) => setField("weight", e.target.value)}
-                  className="field-input tabular-nums"
-                  placeholder="Ex: 450"
-                  min="1"
-                  step="0.1"
-                  required
-                  inputMode="decimal"
-                />
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor="age-field">
-                  Idade (meses) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="age-field"
-                  type="number"
-                  value={formData.age}
-                  onChange={(e) => setField("age", e.target.value)}
-                  className="field-input tabular-nums"
-                  placeholder="Ex: 24"
-                  min="0"
-                  required
-                  inputMode="numeric"
-                />
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor="length-field">
-                  Comprimento (cm)
-                </label>
-                <input
-                  id="length-field"
-                  type="number"
-                  value={formData.length}
-                  onChange={(e) => setField("length", e.target.value)}
-                  className="field-input tabular-nums"
-                  placeholder="Ex: 165"
-                  min="1"
-                  step="0.5"
-                  inputMode="decimal"
-                />
-              </div>
-            </div>
-
-            {/* Localização da Fazenda e GPS */}
-            <FarmLocationFields
-              value={{
-                location: formData.location,
-                locationAddress: formData.locationAddress,
-                latitude: formData.latitude,
-                longitude: formData.longitude,
-              }}
-              onChange={(loc) => setFormData((prev) => ({ ...prev, ...loc }))}
-            />
-
-            {/* Observação Geral Inicial */}
-            <div className="p-3.5 rounded-lg bg-theme-surface-2/60 border border-theme space-y-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="field-label !mb-0" htmlFor="observations-field">
-                  Observação geral inicial
-                </label>
-                <select
-                  aria-label="Categoria da observação"
-                  value={formData.observationCategory}
-                  onChange={(e) =>
-                    setField("observationCategory", e.target.value as ObservationCategory)
-                  }
-                  className="field-input !w-auto !py-1 !px-2.5 text-xs font-medium"
-                >
-                  {OBSERVATION_CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <textarea
-                id="observations-field"
-                rows={2}
-                value={formData.observations}
-                onChange={(e) => setField("observations", e.target.value)}
-                className="field-input text-sm resize-y min-h-[64px]"
-                placeholder="Opcional: histórico de compra, comportamento no lote, dieta ou anotações gerais…"
+              <input
+                id="name-field"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setField("name", e.target.value)}
+                className="field-input font-semibold"
+                placeholder="Ex: Mimosa, Estrela, Lote 42"
+                autoFocus={!initialTag}
+                autoComplete="off"
               />
             </div>
 
-            {/* Botões de Ação */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary flex-1 py-3 min-h-[46px] text-sm font-semibold"
-              >
-                {loading && goToCamera ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4" />
-                )}
-                <span>Cadastrar e fotografar</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={loading}
-                onClick={(e) => handleSubmit(e, false)}
-                className="btn-secondary py-3 px-6 min-h-[46px] text-sm font-semibold"
-              >
-                {loading && !goToCamera ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Check className="w-4 h-4" />
-                )}
-                <span>Salvar ficha</span>
-              </button>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="field-label !mb-0" htmlFor="tag-field">
+                  Brinco ou identificador <span className="text-red-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={generateSampleTag}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand hover:underline"
+                >
+                  <Shuffle className="w-3 h-3" />
+                  <span>Gerar</span>
+                </button>
+              </div>
+              <input
+                id="tag-field"
+                type="text"
+                value={formData.tag}
+                onChange={(e) => {
+                  setBleScannedNow(false);
+                  setField("tag", e.target.value.toUpperCase());
+                }}
+                className="field-input font-mono-tag text-xs uppercase font-semibold"
+                placeholder="Ex: NEL-0142 ou código lido"
+                required
+                autoComplete="off"
+              />
             </div>
-          </form>
-        </div>
-      </main>
+          </div>
+        </section>
 
-      <MobileNav />
-    </div>
+        {/* Seção 2: Características Físicas */}
+        <section className="card p-5 space-y-4">
+          <div className="pb-3 border-b border-theme">
+            <h2 className="text-sm font-bold text-theme-primary">2. Características físicas</h2>
+            <p className="text-xs text-theme-secondary">Raça, sexo e medidas corporais</p>
+          </div>
+
+          <div>
+            <label className="field-label">
+              Raça <span className="text-red-500">*</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {BREEDS.map((breed) => {
+                const active = formData.breed === breed;
+                return (
+                  <button
+                    key={breed}
+                    type="button"
+                    onClick={() => setField("breed", breed)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                      active
+                        ? "bg-brand text-white border-transparent"
+                        : "bg-theme-surface-2 text-theme-secondary border-theme hover:text-theme-primary"
+                    }`}
+                  >
+                    {breed}
+                  </button>
+                );
+              })}
+            </div>
+
+            {formData.breed === "Outra" && (
+              <div className="mt-3">
+                <label className="field-label" htmlFor="custom-breed-field">
+                  Nome da raça <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="custom-breed-field"
+                  type="text"
+                  required
+                  value={customBreed}
+                  onChange={(e) => setCustomBreed(e.target.value)}
+                  placeholder="Ex: Simental, Tabapuã, Guzerá"
+                  className="field-input text-sm"
+                  autoFocus
+                />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="field-label">
+              Sexo <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {SEX_OPTIONS.map((opt) => {
+                const active = formData.sex === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setField("sex", opt.value)}
+                    className={`p-3 rounded-[10px] border text-left transition flex items-center justify-between ${
+                      active
+                        ? "bg-brand-soft border-emerald-700/40"
+                        : "bg-theme-surface-2 border-theme text-theme-secondary hover:text-theme-primary"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-theme-primary">{opt.value}</p>
+                      <p className="text-[11px] text-theme-secondary mt-0.5">{opt.label}</p>
+                    </div>
+                    <div
+                      className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                        active ? "bg-brand text-white" : "border border-theme"
+                      }`}
+                    >
+                      {active && <Check className="w-3 h-3" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="field-label" htmlFor="weight-field">
+                Peso (kg) <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="weight-field"
+                type="number"
+                value={formData.weight}
+                onChange={(e) => setField("weight", e.target.value)}
+                className="field-input tabular-nums"
+                placeholder="450"
+                min="1"
+                step="0.1"
+                required
+                inputMode="decimal"
+              />
+            </div>
+
+            <div>
+              <label className="field-label" htmlFor="age-field">
+                Idade (meses) <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="age-field"
+                type="number"
+                value={formData.age}
+                onChange={(e) => setField("age", e.target.value)}
+                className="field-input tabular-nums"
+                placeholder="24"
+                min="0"
+                required
+                inputMode="numeric"
+              />
+            </div>
+
+            <div>
+              <label className="field-label" htmlFor="length-field">
+                Comprimento (cm)
+              </label>
+              <input
+                id="length-field"
+                type="number"
+                value={formData.length}
+                onChange={(e) => setField("length", e.target.value)}
+                className="field-input tabular-nums"
+                placeholder="165"
+                min="1"
+                step="0.5"
+                inputMode="decimal"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Seção 3: Localização e Nota Inicial */}
+        <section className="card p-5 space-y-4">
+          <div className="pb-3 border-b border-theme">
+            <h2 className="text-sm font-bold text-theme-primary">3. Localização e anotações</h2>
+            <p className="text-xs text-theme-secondary">Fazenda, GPS opcional e observação inicial</p>
+          </div>
+
+          <FarmLocationFields
+            value={{
+              location: formData.location,
+              locationAddress: formData.locationAddress,
+              latitude: formData.latitude,
+              longitude: formData.longitude,
+            }}
+            onChange={(loc) => setFormData((prev) => ({ ...prev, ...loc }))}
+          />
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="field-label !mb-0" htmlFor="observations-field">
+                Observação inicial
+              </label>
+              <select
+                aria-label="Categoria da observação"
+                value={formData.observationCategory}
+                onChange={(e) =>
+                  setField("observationCategory", e.target.value as ObservationCategory)
+                }
+                className="field-input !w-auto !py-1 !px-2.5 text-xs font-medium"
+              >
+                {OBSERVATION_CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <textarea
+              id="observations-field"
+              rows={2}
+              value={formData.observations}
+              onChange={(e) => setField("observations", e.target.value)}
+              className="field-input text-sm resize-y min-h-[68px]"
+              placeholder="Opcional: histórico de lote, alimentação ou observação geral…"
+            />
+          </div>
+        </section>
+
+        {/* Ações finais */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary flex-1 text-sm"
+          >
+            {loading && goToCamera ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4" />
+            )}
+            <span>Cadastrar e fotografar</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={(e) => handleSubmit(e, false)}
+            className="btn-secondary px-6 text-sm"
+          >
+            {loading && !goToCamera ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            <span>Salvar ficha</span>
+          </button>
+        </div>
+      </form>
+    </AppShell>
   );
 }
 
@@ -614,7 +563,7 @@ export default function NewAnimalPage() {
     <Suspense
       fallback={
         <div className="min-h-[100dvh] flex items-center justify-center bg-theme-bg">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          <Loader2 className="w-7 h-7 animate-spin text-brand" />
         </div>
       }
     >

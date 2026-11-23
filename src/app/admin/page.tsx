@@ -41,8 +41,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/Toast';
 import PhotoLightbox from '@/components/PhotoLightbox';
-import AppHeader from '@/components/AppHeader';
-import MobileNav from '@/components/MobileNav';
+import { AppShell } from '@/components/AppShell';
 
 interface AdminUserRow {
   id: number;
@@ -409,21 +408,20 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-theme-bg text-theme-primary flex flex-col pb-20 sm:pb-8">
-      <AppHeader
-        showBack
-        backHref="/dashboard"
-        title="Central de Gestão"
-        subtitle="Rebanho completo, capturas e usuários"
-      />
-
-      <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 space-y-5">
+    <AppShell
+      showBack
+      backHref="/dashboard"
+      title="Central de Gestão"
+      subtitle="Rebanho completo, capturas e usuários"
+      maxWidth="xl"
+    >
+      <div className="space-y-5">
         {/* Hero Board da Gestão */}
         <section className="card p-5 sm:p-6 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-theme">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-theme-primary tracking-tight">
-                Painel Consolidado do Rebanho
+                Painel consolidado do rebanho
               </h1>
               <p className="text-xs sm:text-sm text-theme-secondary mt-0.5">
                 Acompanhe indicadores gerais, avalie o lote e exporte imagens e registros em ZIP.
@@ -445,9 +443,9 @@ export default function AdminPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="card-subtle p-3.5 sm:p-4">
-              <p className="text-[11px] font-semibold text-theme-muted">Total geral</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] rounded-[12px] border border-theme bg-theme-surface-2 overflow-hidden">
+            <div className="p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-theme-muted">Rebanho</p>
               <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
                 {stats.totalAnimals}
               </p>
@@ -456,11 +454,11 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="card-subtle p-3.5 sm:p-4">
-              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+            <div className="p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-brand">
                 Capturas
               </p>
-              <p className="text-xl sm:text-2xl font-bold text-emerald-700 dark:text-emerald-400 mt-1 tabular-nums">
+              <p className="text-xl sm:text-2xl font-bold text-brand mt-1 tabular-nums">
                 {stats.totalPhotos}
               </p>
               <p className="text-[11px] text-theme-secondary mt-0.5">
@@ -468,8 +466,8 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="card-subtle p-3.5 sm:p-4">
-              <p className="text-[11px] font-semibold text-theme-muted">Operadores</p>
+            <div className="p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-theme-muted">Operadores</p>
               <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
                 {stats.totalUsers}
               </p>
@@ -478,10 +476,10 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="card-subtle p-3.5 sm:p-4">
-              <p className="text-[11px] font-semibold text-theme-muted">Enquadramento médio</p>
+            <div className="p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-theme-muted">Enquadramento</p>
               <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
-                {stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
+                {stats.avgScore !== null ? `${stats.avgScore}%` : 'Sem dados'}
               </p>
               <p className="text-[11px] text-theme-secondary mt-0.5">
                 Qualidade média das fotos
@@ -495,7 +493,7 @@ export default function AdminPage() {
             onClick={() => setActiveTab('dataset')}
             className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'dataset'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                ? 'border-[var(--color-brand)] text-brand'
                 : 'border-transparent text-theme-secondary hover:text-theme-primary'
             }`}
           >
@@ -506,7 +504,7 @@ export default function AdminPage() {
             onClick={() => setActiveTab('users')}
             className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${
               activeTab === 'users'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                ? 'border-[var(--color-brand)] text-brand'
                 : 'border-transparent text-theme-secondary hover:text-theme-primary'
             }`}
           >
@@ -535,7 +533,7 @@ export default function AdminPage() {
                     type="checkbox"
                     checked={onlyWithPhotos}
                     onChange={(e) => setOnlyWithPhotos(e.target.checked)}
-                    className="accent-emerald-600 w-3.5 h-3.5"
+                    className="accent-[var(--color-brand)] w-3.5 h-3.5"
                   />
                   <span>Apenas com fotos</span>
                 </label>
@@ -569,9 +567,9 @@ export default function AdminPage() {
                       title="Reavaliar o enquadramento das fotos"
                     >
                       {recalibrating ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
                       ) : (
-                        <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <Activity className="w-3.5 h-3.5 text-brand" />
                       )}
                       <span className="tabular-nums">
                         {recalibrating
@@ -607,9 +605,9 @@ export default function AdminPage() {
                   return (
                     <div
                       key={animal.id}
-                      className="card p-3.5 flex gap-3.5 hover:border-emerald-500/50 transition-all items-center"
+                      className="card p-3.5 flex gap-3.5 hover:border-[var(--color-brand)]/45 transition-all items-center"
                     >
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-theme-surface-2 border border-theme shrink-0 relative flex items-center justify-center">
+                      <div className="w-20 h-20 rounded-[10px] overflow-hidden bg-theme-surface-2 border border-theme shrink-0 relative flex items-center justify-center">
                         {photoUrl ? (
                           <AsyncPhoto
                             src={photoUrl}
@@ -644,14 +642,14 @@ export default function AdminPage() {
                             );
                             if (calcPhoto) {
                               return (
-                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-[7px] bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 tabular-nums">
+                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-[7px] bg-brand-soft text-brand tabular-nums">
                                   ICS {Number(calcPhoto.icsScore).toFixed(2).replace('.', ',')}
                                 </span>
                               );
                             }
                             if (queued) {
                               return (
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-[7px] bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-[7px] bg-[#B45309]/12 text-[#B45309] dark:text-[#FBBF24]">
                                   ICS na fila
                                 </span>
                               );
@@ -661,17 +659,17 @@ export default function AdminPage() {
                         </div>
 
                         <p className="text-[11px] text-theme-secondary truncate">
-                          {animal.breed} — {animal.sex}, {animal.weight} kg, {animal.age} meses
+                          {animal.breed}, {animal.sex}, {animal.weight} kg, {animal.age} meses
                         </p>
 
                         <p className="text-[10px] text-theme-muted truncate mt-0.5">
                           Operador: <strong className="text-theme-secondary">{animal.owner?.name}</strong> ({animal.owner?.email})
                         </p>
 
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-3 mt-2">
                           <Link
                             href={`/animal/${animal.id}`}
-                            className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-0.5"
+                            className="text-[11px] font-bold text-brand hover:underline inline-flex items-center gap-1"
                           >
                             Ver ficha <ExternalLink className="w-3 h-3" />
                           </Link>
@@ -735,7 +733,7 @@ export default function AdminPage() {
                   return (
                     <div
                       key={target.id}
-                      className="card p-4 flex flex-col justify-between hover:border-emerald-500/50 transition gap-3"
+                      className="card p-4 flex flex-col justify-between hover:border-[var(--color-brand)]/45 transition gap-3"
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2">
@@ -743,7 +741,7 @@ export default function AdminPage() {
                             <h3 className="text-sm font-bold text-theme-primary truncate flex items-center gap-1.5">
                               {target.name}
                               {target.isSelf && (
-                                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-soft text-brand">
                                   Você
                                 </span>
                               )}
@@ -754,8 +752,8 @@ export default function AdminPage() {
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0 ${
                               isCurrentAdmin
-                                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
-                                : 'bg-slate-500/10 text-theme-secondary border border-theme'
+                                ? 'bg-[#B45309]/12 text-[#B45309] dark:text-[#FBBF24] border border-[#B45309]/25'
+                                : 'bg-theme-surface-2 text-theme-secondary border border-theme'
                             }`}
                           >
                             {isCurrentAdmin ? (
@@ -768,9 +766,7 @@ export default function AdminPage() {
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-theme-muted mt-2">
-                          <span>{target.animalsCount} animais</span>
-                          <span>•</span>
-                          <span>{target.photosCount} fotos enviadas</span>
+                          <span>{target.animalsCount} animais, {target.photosCount} fotos enviadas</span>
                         </div>
                       </div>
 
@@ -781,10 +777,10 @@ export default function AdminPage() {
                               type="button"
                               onClick={() => handleToggleRole(target)}
                               disabled={isUpdating}
-                              className={`py-1.5 px-3 text-xs font-semibold rounded-md border transition flex items-center gap-1.5 ${
+                              className={`py-1.5 px-3 text-xs font-semibold rounded-[8px] border transition flex items-center gap-1.5 ${
                                 isCurrentAdmin
                                   ? 'bg-theme-surface hover:bg-theme-surface-2 border-theme text-theme-secondary'
-                                  : 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25'
+                                  : 'bg-[#B45309]/12 text-[#B45309] dark:text-[#FBBF24] border-[#B45309]/30 hover:bg-[#B45309]/20'
                               }`}
                             >
                               {isUpdating ? (
@@ -801,7 +797,7 @@ export default function AdminPage() {
                               type="button"
                               onClick={() => handleDeleteUser(target)}
                               disabled={isUpdating}
-                              className="p-1.5 text-theme-muted hover:text-red-500 hover:bg-red-500/10 rounded-md transition"
+                              className="p-1.5 text-theme-muted hover:text-red-500 hover:bg-red-500/10 rounded-[8px] transition"
                               title="Excluir Usuário"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -816,7 +812,7 @@ export default function AdminPage() {
             )}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Modal Adicionar / Promover Usuário */}
       {showAddUserModal && (
@@ -945,8 +941,6 @@ export default function AdminPage() {
           }}
         />
       )}
-
-      <MobileNav />
-    </div>
+    </AppShell>
   );
 }

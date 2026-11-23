@@ -214,7 +214,7 @@ export default function PhotoLightbox({
       onClick={handleBackdropClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 m-0 p-0 w-full h-[100dvh] max-w-none max-h-none bg-slate-950/95 backdrop-blur-md flex flex-col border-none outline-none animate-fade-in overflow-hidden"
+      className="fixed inset-0 m-0 p-0 w-full h-[100dvh] max-w-none max-h-none bg-[#0D110F]/96 backdrop-blur-md flex flex-col border-none outline-none animate-fade-in overflow-hidden"
       style={{ padding: 0 }}
     >
       {/* Top Bar */}
@@ -228,18 +228,18 @@ export default function PhotoLightbox({
           </span>
 
           {hasScore && (
-            <span className="inline-flex items-center text-xs font-semibold tabular-nums px-2.5 py-1 rounded-[8px] bg-white/10 text-emerald-300">
+            <span className="inline-flex items-center text-xs font-semibold tabular-nums px-2.5 py-1 rounded-[8px] bg-white/10 text-[#74C69D]">
               Enquadramento {Math.round(currentPhoto.score as number)}%
             </span>
           )}
 
           {effectiveIcsStatus === 'CALCULATED' && effectiveIcsScore !== null ? (
-            <span className="inline-flex items-center text-xs font-semibold tabular-nums px-2.5 py-1 rounded-[8px] bg-emerald-600/90 text-white">
-              ICS {effectiveIcsScore.toFixed(2)}
+            <span className="inline-flex items-center text-xs font-semibold tabular-nums px-2.5 py-1 rounded-[8px] bg-[#184E3A] text-white border border-[#2E7D5B]/50">
+              ICS {effectiveIcsScore.toFixed(2).replace('.', ',')}
               {effectiveIcsClass ? ` — ${effectiveIcsClass}` : ''}
             </span>
           ) : effectiveIcsStatus === 'QUEUED' || effectiveIcsStatus === 'PROCESSING' ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-[8px] bg-amber-500/20 text-amber-200 border border-amber-400/30">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-[8px] bg-[#B45309]/25 text-amber-200 border border-[#B45309]/40">
               <Loader2 className="w-3 h-3 animate-spin" />
               {effectiveIcsStatus === 'PROCESSING' ? 'Avaliando ICS…' : 'Na fila de ICS'}
             </span>
@@ -260,7 +260,7 @@ export default function PhotoLightbox({
             onClick={handleGenerateCurrentIcs}
             disabled={generatingIcs}
             aria-label="Avaliar ICS"
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-[8px] transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[36px]"
+            className="bg-[#184E3A] hover:bg-[#1E6047] text-white px-3 py-1.5 rounded-[8px] transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[36px] border border-[#2E7D5B]/50"
             title="Avaliar o ICS desta captura"
           >
             {generatingIcs ? (
@@ -286,9 +286,9 @@ export default function PhotoLightbox({
             title="Recalcular qualidade do enquadramento"
           >
             {recalibrating ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-300" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#74C69D]" />
             ) : (
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-300" />
+              <RefreshCw className="w-3.5 h-3.5 text-[#74C69D]" />
             )}
             <span className="hidden sm:inline">
               {recalibrating ? 'Calculando…' : 'Enquadramento'}
@@ -324,7 +324,7 @@ export default function PhotoLightbox({
       >
         {imgStatus === 'loading' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-            <Loader2 className="w-7 h-7 animate-spin text-emerald-400" />
+            <Loader2 className="w-7 h-7 animate-spin text-[#74C69D]" />
             <span className="text-xs font-medium text-white/80">Carregando imagem…</span>
           </div>
         )}
@@ -361,8 +361,8 @@ export default function PhotoLightbox({
                 >
                   <polygon
                     points={currentPhoto.contourPoints.map((pt) => `${pt.x},${pt.y}`).join(' ')}
-                    fill="rgba(16, 185, 129, 0.14)"
-                    stroke="#34d399"
+                    fill="rgba(46, 125, 91, 0.16)"
+                    stroke="#74C69D"
                     strokeWidth={
                       Math.max(...currentPhoto.contourPoints.map((pt) => Math.max(pt.x, pt.y))) <= 1.05
                         ? '0.006'
@@ -426,7 +426,7 @@ export default function PhotoLightbox({
                   }}
                   aria-label={`Ir para foto ${i + 1}`}
                   className={`h-2 rounded-full transition-all ${
-                    i === currentIndex ? 'bg-emerald-400 w-5' : 'bg-white/40 w-2'
+                    i === currentIndex ? 'bg-[#74C69D] w-5' : 'bg-white/40 w-2'
                   }`}
                 />
               ))}

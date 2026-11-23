@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Painel Principal do Operador (`src/app/dashboard/page.tsx`).
+ * Painel do Rebanho (`src/app/dashboard/page.tsx`).
  */
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -33,8 +33,7 @@ import {
 } from "@/lib/api";
 import { getHerdSnapshot, saveHerdSnapshot } from "@/lib/sync";
 import { useAuth } from "@/lib/auth-context";
-import AppHeader from "@/components/AppHeader";
-import MobileNav from "@/components/MobileNav";
+import AppShell from "@/components/AppShell";
 import { useToast } from "@/components/ui/Toast";
 
 type FilterMode = "all" | "owned" | "shared" | "with_photos" | "without_photos";
@@ -59,6 +58,32 @@ function CardSkeleton() {
   );
 }
 
+function IcsBadge({ animal }: { animal: Animal }) {
+  const ics = animal.ics;
+  if (ics?.status === "CALCULATED" && typeof ics.score === "number") {
+    return (
+      <span
+        title={`ICS ${ics.score.toFixed(2).replace(".", ",")} (${ics.classification})`}
+        className="inline-flex items-center px-2 py-0.5 rounded-[7px] text-xs font-bold tabular-nums bg-brand text-white shrink-0"
+      >
+        ICS {ics.score.toFixed(2).replace(".", ",")}
+      </span>
+    );
+  }
+  if (ics?.status === "QUEUED" || ics?.status === "PROCESSING") {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-[7px] text-[11px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 shrink-0">
+        Na fila
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-[7px] text-[11px] font-medium bg-theme-surface-2 text-theme-muted border border-theme shrink-0">
+      Sem ICS
+    </span>
+  );
+}
+
 function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?: number }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -72,8 +97,6 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
     lastPhoto && typeof lastPhoto.score === "number" ? Math.round(lastPhoto.score) : null;
 
   const isShared = animal.isShared || (currentUserId !== undefined && animal.ownerId !== currentUserId);
-  const icsCalculated = animal.ics?.status === "CALCULATED" && typeof animal.ics.score === "number";
-  const icsQueued = animal.ics?.status === "QUEUED" || animal.ics?.status === "PROCESSING";
 
   const copyTag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -88,7 +111,7 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
     animal.tag.length > 14 ? `${animal.tag.slice(0, 6)}…${animal.tag.slice(-4)}` : animal.tag;
 
   return (
-    <div className="card overflow-hidden group relative hover:border-emerald-500/60 transition-colors flex flex-col justify-between">
+    <div className="card overflow-hidden group flex flex-col justify-between hover:border-theme-strong transition">
       <Link
         href={`/animal/${animal.id}`}
         onMouseEnter={() => prefetchApi(`/api/animals/${animal.id}`)}
@@ -96,120 +119,108 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
         className="block focus:outline-none"
         aria-label={`Abrir ficha de ${displayName}`}
       >
-        <div className="aspect-[16/10] relative overflow-hidden bg-theme-surface-2">
+        {/* Imagem limpa sem excesso de etiquetas */}
+        <div className="aspect-[16/10] relative overflow-hidden bg-theme-surface-2 border-b border-theme">
           {photoUrl ? (
             <AsyncPhoto
               src={photoUrl}
               alt={displayName}
-              loadingLabel="Carregando foto…"
+              loadingLabel="Carregando…"
               className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
-              fallbackIcon={<Layers className="w-7 h-7 opacity-40 stroke-[1.5]" />}
+              fallbackIcon={<Layers className="w-7 h-7 opacity-35" />}
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-theme-surface-2 text-theme-muted">
-              <Layers className="w-7 h-7 opacity-40 stroke-[1.5]" />
+            <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-theme-muted">
+              <Layers className="w-6 h-6 opacity-40" />
               <span className="text-[11px] font-medium">Sem capturas</span>
             </div>
           )}
 
-          {(bestScore !== null || photoCount > 0) && (
-            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
-          )}
-
-          {/* Canto superior esquerdo: ICS ou status na fila */}
-          {icsCalculated ? (
-            <span
-              title={`ICS ${animal.ics?.score?.toFixed(2)} — ${animal.ics?.classification}`}
-              className="absolute top-2.5 left-2.5 inline-flex items-center text-[11px] font-bold tabular-nums px-2.5 py-0.5 rounded-[7px] bg-emerald-600 text-white shadow-xs"
-            >
-              ICS {animal.ics?.score?.toFixed(2).replace(".", ",")}
-            </span>
-          ) : icsQueued ? (
-            <span className="absolute top-2.5 left-2.5 inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-[7px] bg-amber-500 text-slate-950">
-              ICS na fila
-            </span>
-          ) : null}
-
-          {/* Canto superior direito: Compartilhado (sem sobrepor o ICS) */}
           {isShared && (
-            <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-[7px] bg-black/70 text-white backdrop-blur-sm">
+            <span
+              title="Animal em guarda compartilhada"
+              className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-[7px] bg-black/65 text-white backdrop-blur-xs"
+            >
               <Users className="w-3 h-3" />
               <span>Compartilhado</span>
             </span>
           )}
 
-          {/* Base da imagem: Enquadramento e contagem */}
-          {bestScore !== null && (
-            <span
-              title={`Qualidade do enquadramento: ${bestScore}%`}
-              className="absolute bottom-2.5 left-2.5 inline-flex items-center text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-[7px] bg-black/70 text-emerald-300"
-            >
-              Foto {bestScore}%
-            </span>
-          )}
-
-          <span className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-[7px] bg-black/70 text-white">
-            <Images className="w-3 h-3 text-emerald-400" />
+          <div className="absolute bottom-2.5 right-2.5 inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums px-2 py-0.5 rounded-[7px] bg-black/65 text-white backdrop-blur-xs">
+            <Images className="w-3 h-3" />
             <span>{photoCount}</span>
-          </span>
+          </div>
         </div>
 
-        <div className="p-4 pb-3">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="font-bold text-[15px] text-theme-primary truncate group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
-              {displayName}
-            </h3>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-[7px] bg-theme-surface-2 text-theme-secondary border border-theme shrink-0">
-              {animal.breed}
-            </span>
+        {/* Informações estruturadas abaixo da foto */}
+        <div className="p-4 space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="font-bold text-[15px] text-theme-primary truncate group-hover:text-brand transition-colors">
+                {displayName}
+              </h3>
+              <p className="text-xs text-theme-secondary truncate mt-0.5">
+                {animal.breed} — {animal.sex}
+              </p>
+            </div>
+            <IcsBadge animal={animal} />
           </div>
 
-          <div className="flex items-center gap-2 mb-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs text-theme-secondary tabular-nums">
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-theme-primary">{animal.weight} kg</span>
+              <span>{animal.age} meses</span>
+            </div>
+
             <button
               type="button"
               onClick={copyTag}
               title={`Copiar identificador: ${animal.tag}`}
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[7px] text-[11px] font-mono-tag text-theme-secondary bg-theme-surface-2 hover:text-theme-primary border border-theme transition"
+              className="inline-flex items-center gap-1 text-[11px] font-mono-tag text-theme-muted hover:text-theme-primary transition"
             >
               <span>{shortTag}</span>
               {copied ? (
-                <Check className="w-3 h-3 text-emerald-500" />
+                <Check className="w-3 h-3 text-brand" />
               ) : (
                 <Copy className="w-3 h-3 opacity-60" />
               )}
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-theme-secondary tabular-nums">
-            <span>{animal.sex}</span>
-            <span>{animal.weight} kg</span>
-            <span>{animal.age} meses</span>
-            {animal.location && (
-              <span
-                className="inline-flex items-center gap-1 truncate max-w-[150px]"
-                title={animal.locationAddress || animal.location}
-              >
-                <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="truncate">{animal.location}</span>
-              </span>
-            )}
-          </div>
+          {(animal.location || bestScore !== null) && (
+            <div className="flex items-center justify-between gap-2 text-[11px] text-theme-muted">
+              {animal.location ? (
+                <span className="inline-flex items-center gap-1 truncate">
+                  <MapPin className="w-3 h-3 text-brand shrink-0" />
+                  <span className="truncate">{animal.location}</span>
+                </span>
+              ) : (
+                <span />
+              )}
+
+              {bestScore !== null && (
+                <span className="tabular-nums shrink-0 font-medium text-theme-secondary">
+                  Enquadramento {bestScore}%
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </Link>
 
-      <div className="px-4 pb-4 pt-1 flex items-center gap-2">
+      <div className="px-4 pb-4 flex items-center gap-2">
         <Link
           href={cameraUrl}
-          className="btn-primary flex-1 !min-h-[40px] !py-2 text-xs"
+          className="btn-primary flex-1 !min-h-[38px] !py-1.5 text-xs"
           aria-label={`Fotografar ${displayName}`}
         >
-          <Camera className="w-4 h-4" />
+          <Camera className="w-3.5 h-3.5" />
           <span>Fotografar</span>
         </Link>
         <Link
           href={`/animal/${animal.id}`}
-          className="btn-secondary !min-h-[40px] !py-2 !px-3 text-xs"
-          title="Abrir ficha completa"
+          className="btn-secondary !min-h-[38px] !py-1.5 !px-3 text-xs"
+          title="Abrir ficha"
         >
           <span>Ficha</span>
           <ChevronRight className="w-3.5 h-3.5" />
@@ -219,32 +230,29 @@ function AnimalCard({ animal, currentUserId }: { animal: Animal; currentUserId?:
   );
 }
 
-function AnimalListRow({ animal, currentUserId }: { animal: Animal; currentUserId?: number }) {
+function AnimalTableRow({ animal, currentUserId }: { animal: Animal; currentUserId?: number }) {
   const lastPhoto = animal.photos?.[0];
   const thumbUrl = lastPhoto ? getPhotoUrl(lastPhoto.id, 240) : null;
   const displayName = animal.name?.trim() || "Sem apelido";
   const photoCount = getPhotoCount(animal);
-  const bestScore =
-    lastPhoto && typeof lastPhoto.score === "number" ? Math.round(lastPhoto.score) : null;
   const isShared = animal.isShared || (currentUserId !== undefined && animal.ownerId !== currentUserId);
-  const icsCalculated = animal.ics?.status === "CALCULATED" && typeof animal.ics.score === "number";
   const cameraUrl = `/camera?animalId=${animal.id}&animalName=${encodeURIComponent(displayName)}`;
 
   return (
-    <div className="card p-3 flex items-center gap-3.5 hover:border-emerald-500/60 transition-colors">
+    <div className="p-3 sm:px-4 flex items-center gap-3.5 hover:bg-theme-surface-2/60 transition-colors">
       <Link
         href={`/animal/${animal.id}`}
-        className="w-20 h-14 rounded-[10px] overflow-hidden bg-theme-surface-2 shrink-0 flex items-center justify-center border border-theme"
+        className="w-16 h-12 rounded-[8px] overflow-hidden bg-theme-surface-2 shrink-0 flex items-center justify-center border border-theme"
       >
         {thumbUrl ? (
           <AsyncPhoto
             src={thumbUrl}
             alt={displayName}
             compact
-            fallbackIcon={<Layers className="w-5 h-5 text-theme-muted opacity-40" />}
+            fallbackIcon={<Layers className="w-4 h-4 text-theme-muted opacity-40" />}
           />
         ) : (
-          <Layers className="w-5 h-5 text-theme-muted opacity-40" />
+          <Layers className="w-4 h-4 text-theme-muted opacity-40" />
         )}
       </Link>
 
@@ -252,56 +260,39 @@ function AnimalListRow({ animal, currentUserId }: { animal: Animal; currentUserI
         href={`/animal/${animal.id}`}
         onMouseEnter={() => prefetchApi(`/api/animals/${animal.id}`)}
         onTouchStart={() => prefetchApi(`/api/animals/${animal.id}`)}
-        className="min-w-0 flex-1"
+        className="min-w-0 flex-1 grid grid-cols-1 md:grid-cols-12 gap-1.5 md:gap-4 items-center"
       >
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-bold text-sm text-theme-primary truncate hover:text-emerald-700 dark:hover:text-emerald-400">
-            {displayName}
-          </span>
-          <span className="text-[11px] font-medium px-2 py-0.5 rounded-[7px] bg-theme-surface-2 border border-theme text-theme-secondary shrink-0">
-            {animal.breed}
-          </span>
-          {icsCalculated && (
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-[7px] bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 tabular-nums shrink-0">
-              ICS {animal.ics?.score?.toFixed(2).replace(".", ",")}
-            </span>
-          )}
-          {isShared && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-[7px] bg-sky-500/12 text-sky-700 dark:text-sky-300 shrink-0">
-              <Users className="w-3 h-3" />
-              <span>Compartilhado</span>
-            </span>
-          )}
+        <div className="md:col-span-4 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm text-theme-primary truncate">{displayName}</span>
+            {isShared && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/12 text-sky-700 dark:text-sky-300 shrink-0">
+                Compartilhado
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] font-mono-tag text-theme-muted truncate">{animal.tag}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-theme-secondary tabular-nums">
-          <span className="font-mono-tag text-[11px] text-theme-muted">{animal.tag}</span>
-          <span>{animal.sex}</span>
-          <span>{animal.weight} kg</span>
-          <span>{animal.age} meses</span>
-          {animal.location && (
-            <span className="inline-flex items-center gap-1 text-theme-primary">
-              <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-              <span>{animal.location}</span>
-            </span>
-          )}
-          <span>
-            {photoCount} {photoCount === 1 ? "foto" : "fotos"}
-          </span>
-          {bestScore !== null && (
-            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
-              Enquadramento {bestScore}%
-            </span>
-          )}
+        <div className="md:col-span-3 text-xs text-theme-secondary tabular-nums truncate">
+          {animal.breed}, {animal.sex} — {animal.weight} kg
+        </div>
+
+        <div className="md:col-span-3 text-xs text-theme-secondary truncate">
+          {animal.location || `${photoCount} ${photoCount === 1 ? "foto" : "fotos"}`}
+        </div>
+
+        <div className="md:col-span-2 flex md:justify-end">
+          <IcsBadge animal={animal} />
         </div>
       </Link>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <Link href={cameraUrl} className="btn-primary !py-2 !px-3 !min-h-[38px] text-xs">
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Link href={cameraUrl} className="btn-primary !py-1.5 !px-3 !min-h-[36px] text-xs">
           <Camera className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">Fotografar</span>
+          <span className="hidden lg:inline">Fotografar</span>
         </Link>
-        <Link href={`/animal/${animal.id}`} className="btn-secondary !py-2 !px-3 !min-h-[38px] text-xs">
+        <Link href={`/animal/${animal.id}`} className="btn-secondary !py-1.5 !px-3 !min-h-[36px] text-xs">
           <span>Ficha</span>
         </Link>
       </div>
@@ -449,68 +440,55 @@ export default function DashboardPage() {
   }, [stats]);
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary">
-      <AppHeader
-        title="Rebanho"
-        subtitle={
-          loading
-            ? "Carregando…"
-            : `${stats.totalAnimals} ${stats.totalAnimals === 1 ? "animal" : "animais"} no lote`
-        }
-      />
-
-      <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 pb-24 sm:pb-10">
+    <AppShell
+      title="Rebanho"
+      subtitle={
+        loading
+          ? "Carregando…"
+          : `${stats.totalAnimals} ${stats.totalAnimals === 1 ? "animal cadastrado" : "animais cadastrados"}`
+      }
+    >
+      <div className="space-y-5">
         {!loading && usingOfflineCache && (
-          <div className="mb-4 px-3.5 py-2.5 rounded-[10px] bg-sky-500/10 border border-sky-500/25 text-xs text-sky-700 dark:text-sky-300">
+          <div className="px-4 py-2.5 rounded-[10px] bg-sky-500/10 border border-sky-500/25 text-xs text-sky-700 dark:text-sky-300">
             Exibindo cópia salva no aparelho. Novos registros sincronizam ao reconectar.
           </div>
         )}
 
+        {/* Strip único de indicadores */}
         {!loading && animals.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-            <div className="card p-3.5 sm:p-4">
-              <p className="text-[11px] font-semibold text-theme-muted">Rebanho</p>
-              <p className="text-xl sm:text-2xl font-bold tabular-nums text-theme-primary mt-1">
+          <div className="card grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] overflow-hidden">
+            <div className="p-4">
+              <p className="text-[11px] font-semibold text-theme-muted">Rebanho ativo</p>
+              <p className="text-2xl font-bold tabular-nums text-theme-primary mt-1">
                 {stats.totalAnimals}
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">
-                {stats.sharedCount > 0 ? `${stats.sharedCount} compartilhados` : "Animais cadastrados"}
-              </p>
             </div>
-
-            <div className="card p-3.5 sm:p-4">
-              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                ICS avaliado
-              </p>
-              <p className="text-xl sm:text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400 mt-1">
+            <div className="p-4">
+              <p className="text-[11px] font-semibold text-brand">Com ICS avaliado</p>
+              <p className="text-2xl font-bold tabular-nums text-brand mt-1">
                 {stats.evaluatedIcs}
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">
-                de {stats.totalAnimals} {stats.totalAnimals === 1 ? "animal" : "animais"}
-              </p>
             </div>
-
-            <div className="card p-3.5 sm:p-4">
-              <p className="text-[11px] font-semibold text-theme-muted">Capturas</p>
-              <p className="text-xl sm:text-2xl font-bold tabular-nums text-theme-primary mt-1">
+            <div className="p-4">
+              <p className="text-[11px] font-semibold text-theme-muted">Capturas totais</p>
+              <p className="text-2xl font-bold tabular-nums text-theme-primary mt-1">
                 {stats.totalPhotos}
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Fotos no lote</p>
             </div>
-
-            <div className="card p-3.5 sm:p-4">
+            <div className="p-4">
               <p className="text-[11px] font-semibold text-theme-muted">Peso médio</p>
-              <p className="text-xl sm:text-2xl font-bold tabular-nums text-theme-primary mt-1">
+              <p className="text-2xl font-bold tabular-nums text-theme-primary mt-1">
                 {stats.avgWeight}{" "}
                 <span className="text-xs font-medium text-theme-secondary">kg</span>
               </p>
-              <p className="text-[11px] text-theme-secondary mt-0.5">Média geral</p>
             </div>
           </div>
         )}
 
+        {/* Barra de busca e filtros */}
         {!loading && animals.length > 0 && (
-          <div className="flex flex-col gap-3 mb-5">
+          <div className="space-y-3">
             <div className="flex gap-2.5 items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted pointer-events-none" />
@@ -530,7 +508,7 @@ export default function DashboardPage() {
                   title="Grade"
                   className={`p-1.5 rounded-[7px] transition ${
                     viewMode === "grid"
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-brand text-white"
                       : "text-theme-secondary hover:text-theme-primary"
                   }`}
                 >
@@ -539,11 +517,11 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode("list")}
-                  aria-label="Visualização em lista"
+                  aria-label="Visualização em tabela"
                   title="Lista"
                   className={`p-1.5 rounded-[7px] transition ${
                     viewMode === "list"
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-brand text-white"
                       : "text-theme-secondary hover:text-theme-primary"
                   }`}
                 >
@@ -555,7 +533,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => loadAnimals(true)}
                 disabled={refreshing}
-                title="Atualizar"
+                title="Atualizar lista"
                 aria-label="Atualizar lista"
                 className="btn-secondary !px-3 !min-h-[44px] shrink-0"
               >
@@ -571,7 +549,7 @@ export default function DashboardPage() {
                   onClick={() => setFilterMode(tab.id)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 border ${
                     filterMode === tab.id
-                      ? "bg-emerald-600 text-white border-emerald-600"
+                      ? "bg-brand text-white border-transparent"
                       : "bg-theme-surface text-theme-secondary border-theme hover:text-theme-primary"
                   }`}
                 >
@@ -591,6 +569,7 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Listagem */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -599,8 +578,8 @@ export default function DashboardPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="card py-14 px-6 flex flex-col items-center justify-center gap-3 text-center max-w-lg mx-auto my-6">
-            <div className="w-11 h-11 rounded-[12px] bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-              <Layers className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="w-11 h-11 rounded-[12px] bg-brand-soft flex items-center justify-center">
+              <Layers className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base font-bold text-theme-primary">
@@ -641,9 +620,9 @@ export default function DashboardPage() {
             )}
           </div>
         ) : viewMode === "list" ? (
-          <div className="space-y-2.5">
+          <div className="card divide-y divide-[var(--border-subtle)] overflow-hidden">
             {filtered.map((a) => (
-              <AnimalListRow key={a.id} animal={a} currentUserId={currentUserId} />
+              <AnimalTableRow key={a.id} animal={a} currentUserId={currentUserId} />
             ))}
           </div>
         ) : (
@@ -653,9 +632,7 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-      </main>
-
-      <MobileNav />
-    </div>
+      </div>
+    </AppShell>
   );
 }

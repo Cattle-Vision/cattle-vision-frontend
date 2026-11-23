@@ -94,13 +94,13 @@ export default function FarmLocationFields({
 
   return (
     <div
-      className={`rounded-xl border border-theme bg-theme-surface-2/60 ${
+      className={`card-subtle ${
         compact ? "p-3 space-y-2.5" : "p-3.5 sm:p-4 space-y-3"
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-xs font-bold text-theme-primary inline-flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <MapPin className="w-3.5 h-3.5 text-brand" />
           Localização da Fazenda & GPS
         </span>
 
@@ -110,7 +110,7 @@ export default function FarmLocationFields({
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
+              className="text-[11px] font-semibold text-brand hover:underline inline-flex items-center gap-1"
             >
               <span>Abrir no Maps</span>
               <ExternalLink className="w-3 h-3" />
@@ -124,9 +124,9 @@ export default function FarmLocationFields({
             className="btn-secondary !py-1.5 !px-2.5 !min-h-[32px] text-[11px] font-semibold"
           >
             {capturingGps ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-brand" />
             ) : (
-              <Crosshair className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <Crosshair className="w-3.5 h-3.5 text-brand" />
             )}
             <span>{capturingGps ? "Buscando GPS…" : "Usar GPS atual"}</span>
           </button>

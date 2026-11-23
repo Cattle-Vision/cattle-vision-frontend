@@ -238,27 +238,30 @@ export default function AnimalIcsPanel({
 
         {/* Régua visual da escala 1,0 a 5,0 quando calculado */}
         {isCalculated && scorePercent !== null && (
-          <div className="card-subtle p-3.5 space-y-2">
+          <div className="card-subtle p-4 space-y-2.5">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-xs font-semibold text-theme-secondary">Escala 1,0 – 5,0</span>
               <div className="flex items-baseline gap-2">
-                <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                <span className="text-2xl font-bold text-brand tabular-nums">
                   {ics.score?.toFixed(2).replace(".", ",")}
                 </span>
-                <span className="text-xs font-semibold text-theme-primary">
+                <span className="text-xs font-bold text-theme-primary">
                   {ics.classification}
                 </span>
               </div>
             </div>
 
-            <div className="relative h-2 rounded-full bg-theme-surface border border-theme overflow-visible">
+            <div className="relative h-2.5 rounded-full bg-theme-surface border border-theme overflow-visible">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 opacity-85"
-                style={{ width: "100%" }}
+                className="h-full rounded-full opacity-85"
+                style={{
+                  width: "100%",
+                  background: "linear-gradient(90deg, #B45309 0%, #184E3A 50%, #B45309 100%)",
+                }}
               />
               <div
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white border-2 border-emerald-700 shadow-sm"
-                style={{ left: `${scorePercent}%` }}
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-[2.5px] shadow-sm"
+                style={{ left: `${scorePercent}%`, borderColor: "var(--color-brand)" }}
               />
             </div>
 
@@ -270,15 +273,15 @@ export default function AnimalIcsPanel({
           </div>
         )}
 
-        {/* Métricas objetivas */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="card-subtle p-3.5">
+        {/* Métricas objetivas em strip dividido */}
+        <div className="card-subtle grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-subtle)] overflow-hidden">
+          <div className="p-3.5">
             <span className="text-[11px] font-semibold text-theme-muted block">
               Nota ICS
             </span>
             {isCalculated ? (
               <>
-                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400 tabular-nums mt-1">
+                <p className="text-lg font-bold text-brand tabular-nums mt-1">
                   {ics.score?.toFixed(2).replace(".", ",")}
                 </p>
                 <p className="text-xs text-theme-secondary mt-0.5">{ics.classification}</p>
@@ -286,7 +289,7 @@ export default function AnimalIcsPanel({
             ) : (
               <>
                 <p className="text-sm font-semibold text-theme-primary mt-1 inline-flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   {ics?.status === "QUEUED"
                     ? "Na fila"
                     : ics?.status === "PROCESSING"
@@ -300,7 +303,7 @@ export default function AnimalIcsPanel({
             )}
           </div>
 
-          <div className="card-subtle p-3.5">
+          <div className="p-3.5">
             <span className="text-[11px] font-semibold text-theme-muted block">
               Condição corporal
             </span>
@@ -308,9 +311,7 @@ export default function AnimalIcsPanel({
               <>
                 <p
                   className={`text-sm font-bold mt-1 inline-flex items-center gap-1.5 ${
-                    ics.slaughterReady
-                      ? "text-emerald-700 dark:text-emerald-400"
-                      : "text-amber-600 dark:text-amber-400"
+                    ics.slaughterReady ? "text-brand" : "text-amber-600 dark:text-amber-400"
                   }`}
                 >
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -328,7 +329,7 @@ export default function AnimalIcsPanel({
             )}
           </div>
 
-          <div className="card-subtle p-3.5">
+          <div className="p-3.5">
             <span className="text-[11px] font-semibold text-theme-muted block">
               Qualidade média das fotos
             </span>

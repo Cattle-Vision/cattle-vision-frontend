@@ -3,15 +3,9 @@
 import React, { useId } from "react";
 
 interface BrandMarkProps {
-  /** Classe Tailwind para dimensionamento (ex.: "h-9 w-9") */
   className?: string;
 }
 
-/**
- * Marca visual canônica do CattleVision (`BrandMark`), sincronizada 1:1 com `/icon.svg`.
- * Usa `useId()` no gradiente SVG para evitar colisões de ID quando renderizada múltiplas
- * vezes na mesma árvore DOM (header, footer, telas de auth).
- */
 export function BrandMark({ className = "h-9 w-9" }: BrandMarkProps) {
   const gradId = `cv-brand-${useId().replace(/:/g, "")}`;
 
@@ -24,51 +18,49 @@ export function BrandMark({ className = "h-9 w-9" }: BrandMarkProps) {
     >
       <defs>
         <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#10B981" />
-          <stop offset="100%" stopColor="#047857" />
+          <stop offset="0%" stopColor="#226B4F" />
+          <stop offset="100%" stopColor="#133D2D" />
         </linearGradient>
       </defs>
-      <rect width="512" height="512" rx="112" fill={`url(#${gradId})`} />
-      {/* Cantoneiras do visor de enquadramento anatômico */}
+      <rect width="512" height="512" rx="116" fill={`url(#${gradId})`} />
       <path
-        d="M96 156 V112 Q96 96 112 96 H156"
+        d="M108 164 V120 Q108 104 124 104 H168"
         fill="none"
-        stroke="#A7F3D0"
+        stroke="#B7E4CE"
         strokeWidth="20"
         strokeLinecap="round"
       />
       <path
-        d="M356 96 H400 Q416 96 416 112 V156"
+        d="M344 104 H388 Q404 104 404 120 V164"
         fill="none"
-        stroke="#A7F3D0"
+        stroke="#B7E4CE"
         strokeWidth="20"
         strokeLinecap="round"
       />
       <path
-        d="M96 356 V400 Q96 416 112 416 H156"
+        d="M108 348 V392 Q108 408 124 408 H168"
         fill="none"
-        stroke="#A7F3D0"
+        stroke="#B7E4CE"
         strokeWidth="20"
         strokeLinecap="round"
       />
       <path
-        d="M356 416 H400 Q416 416 416 400 V356"
+        d="M344 408 H388 Q404 408 404 392 V348"
         fill="none"
-        stroke="#A7F3D0"
+        stroke="#B7E4CE"
         strokeWidth="20"
         strokeLinecap="round"
       />
-      {/* Mira concêntrica de garupa bovina */}
       <circle
         cx="256"
         cy="256"
-        r="88"
+        r="82"
         fill="#FFFFFF"
-        fillOpacity="0.16"
+        fillOpacity="0.12"
         stroke="#FFFFFF"
         strokeWidth="20"
       />
-      <circle cx="256" cy="256" r="38" fill="#FFFFFF" />
+      <circle cx="256" cy="256" r="32" fill="#FFFFFF" />
     </svg>
   );
 }

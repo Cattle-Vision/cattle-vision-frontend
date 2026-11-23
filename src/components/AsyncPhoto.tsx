@@ -54,15 +54,15 @@ export function AsyncPhoto({
         <div
           role="status"
           aria-live="polite"
-          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 bg-neutral-100/95 px-2 text-center dark:bg-neutral-900/95"
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 bg-theme-surface-2/95 px-2 text-center"
         >
           <Loader2
             className={`${
               compact ? "h-4 w-4" : "h-5 w-5"
-            } animate-spin text-emerald-600 dark:text-emerald-400`}
+            } animate-spin text-brand`}
           />
           {!compact && (
-            <span className="text-[11px] font-medium text-neutral-600 dark:text-neutral-300">
+            <span className="text-[11px] font-medium text-theme-secondary">
               {loadingLabel}
             </span>
           )}
@@ -70,7 +70,7 @@ export function AsyncPhoto({
       )}
 
       {status === "error" ? (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-neutral-100 text-neutral-400 dark:bg-neutral-900 dark:text-neutral-600">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-theme-surface-2 text-theme-muted">
           {fallbackIcon ?? <ImageOff className={compact ? "h-4 w-4" : "h-6 w-6 opacity-60"} />}
           {!compact && <span className="text-[11px] font-medium">Imagem indisponível</span>}
         </div>

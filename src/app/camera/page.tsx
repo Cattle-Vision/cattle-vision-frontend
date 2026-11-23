@@ -672,14 +672,14 @@ function CameraContent() {
 
   if (screen === "done") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-slate-950 text-white">
+      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-[#0D110F] text-white">
         <div
           className={`w-20 h-20 rounded-full flex items-center justify-center shadow-xl ${
             savedOffline
-              ? "bg-amber-500"
+              ? "bg-[#B45309]"
               : isFinalLow
-              ? "bg-amber-600"
-              : "bg-emerald-500 shadow-emerald-500/25"
+              ? "bg-[#B45309]"
+              : "bg-[#184E3A] border border-[#2E7D5B]"
           }`}
         >
           {savedOffline ? (
@@ -693,7 +693,7 @@ function CameraContent() {
           <h2 className="text-2xl font-bold text-white mb-2">
             {savedOffline ? "Foto salva no aparelho" : "Foto salva"}
           </h2>
-          <p className="text-slate-300 text-sm leading-relaxed">
+          <p className="text-white/70 text-sm leading-relaxed">
             {savedOffline ? (
               <>
                 A foto de <strong className="text-white">{animalName || "animal"}</strong> será
@@ -712,8 +712,8 @@ function CameraContent() {
               <div
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold border ${
                   finalScore >= 40
-                    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
-                    : "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                    ? "bg-[#184E3A]/60 text-[#74C69D] border-[#2E7D5B]/50"
+                    : "bg-[#B45309]/20 text-amber-200 border-[#B45309]/40"
                 }`}
               >
                 <Activity className="w-3.5 h-3.5" />
@@ -732,7 +732,7 @@ function CameraContent() {
           </button>
           <button
             onClick={retake}
-            className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 rounded-[10px] text-sm font-semibold text-white transition"
+            className="w-full py-3.5 bg-[#141A17] hover:bg-[#1E2722] border border-white/15 rounded-[10px] text-sm font-semibold text-white transition"
           >
             Tirar outra foto
           </button>
@@ -743,13 +743,13 @@ function CameraContent() {
 
   if (screen === "error") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-slate-950 text-white">
+      <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6 gap-6 bg-[#0D110F] text-white">
         <div className="w-20 h-20 bg-red-500/20 border border-red-500/40 rounded-full flex items-center justify-center">
           <X className="w-10 h-10 text-red-400 stroke-[2.5]" />
         </div>
         <div className="text-center max-w-xs">
           <h2 className="text-xl font-extrabold text-white mb-2">Falha no envio</h2>
-          <p className="text-slate-400 text-sm leading-relaxed">
+          <p className="text-white/70 text-sm leading-relaxed">
             {uploadErr || "Não foi possível salvar a imagem."}
           </p>
         </div>
@@ -759,7 +759,7 @@ function CameraContent() {
           </button>
           <button
             onClick={retake}
-            className="w-full py-3.5 bg-slate-800 rounded-xl text-white text-sm font-bold"
+            className="w-full py-3.5 bg-[#141A17] hover:bg-[#1E2722] border border-white/15 rounded-[10px] text-white text-sm font-semibold transition"
           >
             Escolher Outra Foto
           </button>
@@ -771,7 +771,7 @@ function CameraContent() {
   const isLiveGood = (liveScore ?? 0) >= 45;
 
   return (
-    <div className="relative w-full h-[100dvh] bg-slate-950 overflow-hidden select-none">
+    <div className="relative w-full h-[100dvh] bg-[#0D110F] overflow-hidden select-none">
       <canvas ref={canvasRef} className="hidden" />
       <canvas ref={opticalCanvasRef} className="hidden" />
       <canvas ref={liveAiCanvasRef} className="hidden" />
@@ -799,13 +799,13 @@ function CameraContent() {
         className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 sm:px-4 py-2 gap-2"
         style={{
           paddingTop: "max(0.6rem, env(safe-area-inset-top))",
-          background: "linear-gradient(to bottom, rgba(2,6,23,0.92) 0%, transparent 100%)",
+          background: "linear-gradient(to bottom, rgba(13,17,15,0.92) 0%, transparent 100%)",
           display: screen === "uploading" ? "none" : "flex",
         }}
       >
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 min-h-[38px] rounded-md bg-slate-950/75 hover:bg-slate-900 active:scale-95 border border-white/15 text-white text-xs font-semibold shrink-0 touch-manipulation transition"
+          className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 min-h-[38px] rounded-[8px] bg-[#141A17]/85 hover:bg-[#1E2722] active:scale-95 border border-white/15 text-white text-xs font-semibold shrink-0 touch-manipulation transition"
           title="Voltar"
           aria-label="Voltar"
         >
@@ -817,7 +817,7 @@ function CameraContent() {
           <p className="text-white font-bold text-xs sm:text-sm truncate max-w-[160px] sm:max-w-[260px]">
             {animalName || "Captura guiada"}
           </p>
-          <p className="text-[10px] font-medium text-emerald-300 truncate">
+          <p className="text-[10px] font-medium text-[#74C69D] truncate">
             {localAiStatus === "ready"
               ? isOffline
                 ? "Modo offline ativo"
@@ -833,8 +833,8 @@ function CameraContent() {
           onClick={() => setLiveAiEnabled((v) => !v)}
           className={`px-2.5 py-1.5 min-h-[34px] rounded-[8px] text-[11px] font-semibold border shrink-0 transition ${
             liveAiEnabled
-              ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
-              : "bg-slate-950/80 border-white/15 text-slate-300"
+              ? "bg-[#184E3A]/85 border-[#2E7D5B] text-[#74C69D]"
+              : "bg-[#141A17]/85 border-white/15 text-white/75"
           }`}
           title="Alternar guia automático na prévia"
         >
@@ -848,40 +848,42 @@ function CameraContent() {
             <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none p-6">
               <div
                 ref={reticleRef}
-                className={`relative w-[74%] max-w-[290px] aspect-[3/4] rounded-sm border transition-colors duration-200 ${
-                  isLiveGood ? "border-emerald-400/75" : "border-white/30"
+                className={`relative w-[74%] max-w-[290px] aspect-[3/4] rounded-[6px] border transition-colors duration-200 ${
+                  isLiveGood ? "border-[#74C69D]/80" : "border-white/30"
                 }`}
               >
                 {vidReady && liveScore !== null && (
                   <div
-                    className={`absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold whitespace-nowrap border transition-colors ${
+                    className={`absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-[11px] font-bold whitespace-nowrap border transition-colors ${
                       isLiveGood
-                        ? "bg-slate-950/85 text-emerald-300 border-emerald-500/50"
-                        : "bg-slate-950/85 text-amber-300 border-amber-500/40"
+                        ? "bg-[#0D110F]/85 text-[#74C69D] border-[#2E7D5B]"
+                        : "bg-[#0D110F]/85 text-amber-200 border-[#B45309]/60"
                     }`}
                   >
-                    <span>{isLiveGood ? "Enquadramento Ideal" : "Ajuste o Enquadramento"} · {liveScore}%</span>
+                    <span>
+                      {isLiveGood ? "Enquadramento ideal" : "Ajuste o enquadramento"} ({liveScore}%)
+                    </span>
                   </div>
                 )}
 
                 <div
                   className={`absolute -top-0.5 -left-0.5 w-6 h-6 border-t-2 border-l-2 transition-colors ${
-                    isLiveGood ? "border-emerald-400" : "border-amber-400"
+                    isLiveGood ? "border-[#74C69D]" : "border-amber-400"
                   }`}
                 />
                 <div
                   className={`absolute -top-0.5 -right-0.5 w-6 h-6 border-t-2 border-r-2 transition-colors ${
-                    isLiveGood ? "border-emerald-400" : "border-amber-400"
+                    isLiveGood ? "border-[#74C69D]" : "border-amber-400"
                   }`}
                 />
                 <div
                   className={`absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-2 border-l-2 transition-colors ${
-                    isLiveGood ? "border-emerald-400" : "border-amber-400"
+                    isLiveGood ? "border-[#74C69D]" : "border-amber-400"
                   }`}
                 />
                 <div
                   className={`absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-2 border-r-2 transition-colors ${
-                    isLiveGood ? "border-emerald-400" : "border-amber-400"
+                    isLiveGood ? "border-[#74C69D]" : "border-amber-400"
                   }`}
                 />
 
@@ -890,7 +892,7 @@ function CameraContent() {
                   viewBox="0 0 200 260"
                   className="w-full h-full opacity-40 pointer-events-none"
                   fill="none"
-                  stroke={isLiveGood ? "#34D399" : "#FBBF24"}
+                  stroke={isLiveGood ? "#74C69D" : "#FBBF24"}
                   strokeWidth="2"
                   strokeDasharray="6 6"
                 >
@@ -903,29 +905,29 @@ function CameraContent() {
                   <div className="h-6 w-0.5 bg-white/70 -ml-3" />
                 </div>
 
-                <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-slate-950/85 border border-white/15 text-white/95 text-[11px] font-semibold px-3 py-1 rounded-md whitespace-nowrap">
+                <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 bg-[#0D110F]/85 border border-white/15 text-white/95 text-[11px] font-semibold px-3 py-1 rounded-[8px] whitespace-nowrap">
                   {liveStatus}
                 </div>
 
-                {/* Indicadores compactos de ângulo (DeviceOrientation) e distância (YOLO box) */}
+                {/* Indicadores compactos de ângulo e distância */}
                 {(tiltStatus.available || tiltStatus.needsPermission || distanceGuide.label) && (
                   <div className="absolute -bottom-[4.25rem] left-1/2 -translate-x-1/2 flex flex-wrap items-center justify-center gap-1.5 w-max max-w-[92vw]">
                     {tiltStatus.needsPermission ? (
                       <button
                         type="button"
                         onClick={requestOrientationPermission}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-950/85 border border-white/20 text-[10px] font-semibold text-white/85"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] bg-[#0D110F]/85 border border-white/20 text-[10px] font-semibold text-white/85"
                       >
-                        <Compass className="w-3 h-3 text-emerald-400" />
+                        <Compass className="w-3 h-3 text-[#74C69D]" />
                         Ativar nível
                       </button>
                     ) : (
                       tiltStatus.available && (
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] border text-[10px] font-semibold ${
                             tiltStatus.ok
-                              ? "bg-slate-950/85 border-emerald-500/40 text-emerald-300"
-                              : "bg-slate-950/85 border-amber-500/40 text-amber-300"
+                              ? "bg-[#0D110F]/85 border-[#2E7D5B] text-[#74C69D]"
+                              : "bg-[#0D110F]/85 border-[#B45309]/60 text-amber-200"
                           }`}
                         >
                           <Compass className="w-3 h-3" />
@@ -936,10 +938,10 @@ function CameraContent() {
 
                     {distanceGuide.label && (
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-semibold ${
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] border text-[10px] font-semibold ${
                           distanceGuide.status === "ideal"
-                            ? "bg-slate-950/85 border-emerald-500/40 text-emerald-300"
-                            : "bg-slate-950/85 border-amber-500/40 text-amber-300"
+                            ? "bg-[#0D110F]/85 border-[#2E7D5B] text-[#74C69D]"
+                            : "bg-[#0D110F]/85 border-[#B45309]/60 text-amber-200"
                         }`}
                       >
                         {distanceGuide.label}
@@ -953,23 +955,23 @@ function CameraContent() {
 
           {!vidReady && !camErr && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-3 text-white/70 text-sm font-medium">
-                <RefreshCcw className="w-6 h-6 animate-spin text-emerald-400" />
-                <span>Inicializando sensor de câmera…</span>
+              <div className="flex flex-col items-center gap-3 text-white/75 text-sm font-medium">
+                <RefreshCcw className="w-6 h-6 animate-spin text-[#74C69D]" />
+                <span>Inicializando câmera…</span>
               </div>
             </div>
           )}
 
           {camErr && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 p-6 text-center bg-slate-950/95">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-emerald-500/15 border border-emerald-500/30">
-                <AlertCircle className="w-8 h-8 text-emerald-400" />
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 p-6 text-center bg-[#0D110F]/95">
+              <div className="w-16 h-16 rounded-[14px] flex items-center justify-center bg-[#184E3A]/40 border border-[#2E7D5B]">
+                <AlertCircle className="w-8 h-8 text-[#74C69D]" />
               </div>
               <div className="max-w-xs">
                 <h3 className="text-white font-extrabold text-base mb-1">
-                  Câmera Indisponível
+                  Câmera indisponível
                 </h3>
-                <p className="text-slate-400 text-xs leading-relaxed">{camErr}</p>
+                <p className="text-white/65 text-xs leading-relaxed">{camErr}</p>
               </div>
               <div className="flex flex-col gap-3 w-full max-w-xs">
                 <button
@@ -977,7 +979,7 @@ function CameraContent() {
                   className="btn-primary w-full py-3.5 text-sm flex items-center justify-center gap-2"
                 >
                   <ImagePlus className="w-4 h-4" />
-                  Selecionar Foto da Galeria
+                  Selecionar foto da galeria
                 </button>
               </div>
             </div>
@@ -987,7 +989,7 @@ function CameraContent() {
             className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-around py-4 px-4 sm:px-8"
             style={{
               paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))",
-              background: "linear-gradient(to top, rgba(2,6,23,0.92) 0%, transparent 100%)",
+              background: "linear-gradient(to top, rgba(13,17,15,0.94) 0%, transparent 100%)",
             }}
           >
             <button
@@ -998,8 +1000,8 @@ function CameraContent() {
               title="Alternar entre câmeras ou inverter direção"
               aria-label="Trocar de câmera"
             >
-              <div className="w-11 h-11 rounded-lg bg-slate-950/75 flex items-center justify-center border border-white/15">
-                <SwitchCamera className={`w-5 h-5 ${switchingCamera ? "animate-spin text-emerald-400" : ""}`} />
+              <div className="w-11 h-11 rounded-[10px] bg-[#141A17]/85 flex items-center justify-center border border-white/15">
+                <SwitchCamera className={`w-5 h-5 ${switchingCamera ? "animate-spin text-[#74C69D]" : ""}`} />
               </div>
               <span className="text-[10px] font-semibold">
                 {videoDevices.length > 1 ? `Lentes (${videoDevices.length})` : "Inverter"}
@@ -1011,10 +1013,10 @@ function CameraContent() {
               onClick={handleCapture}
               disabled={!vidReady || !!camErr}
               aria-label="Capturar foto agora"
-              className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 border-emerald-400 p-1 flex items-center justify-center active:scale-95 disabled:opacity-35 transition-transform bg-emerald-500/10 shadow-lg shadow-emerald-500/25"
+              className="w-16 h-16 sm:w-18 sm:h-18 rounded-full border-2 border-[#74C69D] p-1 flex items-center justify-center active:scale-95 disabled:opacity-35 transition-transform bg-[#184E3A]/30 shadow-lg"
             >
-              <div className="w-full h-full rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center transition">
-                <Camera className="w-7 h-7 text-slate-950" />
+              <div className="w-full h-full rounded-full bg-[#2E7D5B] hover:bg-[#38946D] flex items-center justify-center transition">
+                <Camera className="w-7 h-7 text-white" />
               </div>
             </button>
 
@@ -1029,7 +1031,7 @@ function CameraContent() {
               className="flex flex-col items-center gap-1 text-white/80 hover:text-white transition active:scale-95"
               aria-label="Enviar da galeria"
             >
-              <div className="w-11 h-11 rounded-lg bg-slate-950/75 flex items-center justify-center border border-white/15">
+              <div className="w-11 h-11 rounded-[10px] bg-[#141A17]/85 flex items-center justify-center border border-white/15">
                 <ImagePlus className="w-5 h-5" />
               </div>
               <span className="text-[10px] font-semibold">Galeria</span>
@@ -1039,23 +1041,23 @@ function CameraContent() {
       )}
 
       {screen === "preview" && previewUrl && (
-        <div className="absolute inset-0 z-30 flex flex-col bg-slate-950">
+        <div className="absolute inset-0 z-30 flex flex-col bg-[#0D110F]">
           <div className="flex-1 relative flex items-center justify-center p-3 sm:p-4 overflow-hidden">
             <div className="relative inline-flex max-w-full max-h-full items-center justify-center">
               <img
                 src={previewUrl}
                 alt="Preview da captura"
-                className="max-w-full max-h-[68dvh] w-auto h-auto object-contain rounded-lg border border-white/10 shadow-xl"
+                className="max-w-full max-h-[68dvh] w-auto h-auto object-contain rounded-[10px] border border-white/10 shadow-xl"
               />
               {previewAnalysis?.source === "yolo-onnx" &&
                 previewAnalysis.box &&
                 previewAnalysis.box.w > 0 &&
                 previewAnalysis.score >= 15 && (
                   <div
-                    aria-label="Região detectada pela IA"
+                    aria-label="Região identificada na foto"
                     className={`pointer-events-none absolute rounded border-2 ${
                       previewAnalysis.score >= 40
-                        ? "border-emerald-400 shadow-[0_0_0_1px_rgba(16,185,129,0.45)]"
+                        ? "border-[#74C69D] shadow-[0_0_0_1px_rgba(46,125,91,0.5)]"
                         : "border-amber-400 shadow-[0_0_0_1px_rgba(251,191,36,0.45)]"
                     }`}
                     style={{
@@ -1068,8 +1070,8 @@ function CameraContent() {
                     <span
                       className={`absolute -top-5 left-0 px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold whitespace-nowrap ${
                         previewAnalysis.score >= 40
-                          ? "bg-emerald-500 text-slate-950"
-                          : "bg-amber-400 text-slate-950"
+                          ? "bg-[#184E3A] text-white"
+                          : "bg-amber-400 text-[#0D110F]"
                       }`}
                     >
                       Enquadramento {Math.round(previewAnalysis.score)}%
@@ -1078,22 +1080,22 @@ function CameraContent() {
                 )}
             </div>
             {imageMeta && (
-              <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-white/10 text-slate-300 text-[11px] font-semibold px-2.5 py-0.5 rounded-[7px] backdrop-blur-md">
+              <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-[#141A17]/90 border border-white/10 text-white/75 text-[11px] font-semibold px-2.5 py-0.5 rounded-[7px] backdrop-blur-md">
                 {imageMeta}
               </div>
             )}
           </div>
 
           <div className="px-3 pb-2 max-w-lg mx-auto w-full">
-            <div className="rounded-[12px] bg-slate-900/95 border border-white/10 p-3.5 backdrop-blur-md">
+            <div className="rounded-[12px] bg-[#141A17]/95 border border-white/10 p-3.5 backdrop-blur-md">
               {scoringPreview ? (
                 <div className="flex items-center gap-3 py-1">
-                  <Loader2 className="w-5 h-5 animate-spin text-emerald-400 shrink-0" />
+                  <Loader2 className="w-5 h-5 animate-spin text-[#74C69D] shrink-0" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-white">
                       Verificando enquadramento…
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-white/60">
                       Analisando nitidez e posição do animal
                     </p>
                   </div>
@@ -1104,36 +1106,34 @@ function CameraContent() {
                     <div className="flex items-center gap-1.5">
                       <Activity
                         className={`w-4 h-4 ${
-                          previewAnalysis.score >= 40 ? "text-emerald-400" : "text-amber-400"
+                          previewAnalysis.score >= 40 ? "text-[#74C69D]" : "text-amber-400"
                         }`}
                       />
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                        Qualidade de Enquadramento
+                      <span className="text-xs font-bold uppercase tracking-wider text-white/75">
+                        Qualidade do enquadramento
                       </span>
                     </div>
                     <span
                       className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                        previewAnalysis.score >= 65
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : previewAnalysis.score >= 40
-                          ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
-                          : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        previewAnalysis.score >= 40
+                          ? "bg-[#184E3A]/60 text-[#74C69D] border border-[#2E7D5B]/50"
+                          : "bg-[#B45309]/25 text-amber-200 border border-[#B45309]/40"
                       }`}
                     >
-                      Enquadramento: {Math.round(previewAnalysis.score)}%
+                      {Math.round(previewAnalysis.score)}%
                     </span>
                   </div>
 
-                  <div className="w-full h-1.5 rounded-sm bg-slate-800 overflow-hidden">
+                  <div className="w-full h-1.5 rounded-sm bg-[#1E2722] overflow-hidden">
                     <div
                       className={`h-full rounded-sm transition-all duration-500 ${
-                        previewAnalysis.score >= 40 ? "bg-emerald-500" : "bg-amber-500"
+                        previewAnalysis.score >= 40 ? "bg-[#2E7D5B]" : "bg-[#B45309]"
                       }`}
                       style={{ width: `${Math.max(8, Math.min(100, previewAnalysis.score))}%` }}
                     />
                   </div>
 
-                  <div className="flex items-start gap-1.5 text-xs text-slate-300 leading-snug">
+                  <div className="flex items-start gap-1.5 text-xs text-white/75 leading-snug">
                     {previewAnalysis.lowQuality && (
                       <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                     )}
@@ -1145,12 +1145,12 @@ function CameraContent() {
           </div>
 
           <div
-            className="flex gap-2.5 px-3 py-3 bg-slate-900/95 border-t border-white/10 max-w-lg mx-auto w-full"
+            className="flex gap-2.5 px-3 py-3 bg-[#141A17]/95 border-t border-white/10 max-w-lg mx-auto w-full"
             style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
           >
             <button
               onClick={retake}
-              className="flex-1 flex items-center justify-center gap-1.5 py-3 min-h-[44px] bg-slate-800 hover:bg-slate-700 active:scale-98 rounded-lg text-white font-semibold text-xs sm:text-sm touch-manipulation transition"
+              className="flex-1 flex items-center justify-center gap-1.5 py-3 min-h-[44px] bg-[#1E2722] hover:bg-[#26322B] active:scale-98 rounded-[10px] text-white font-semibold text-xs sm:text-sm touch-manipulation transition"
             >
               <RotateCcw className="w-4 h-4" />
               Tirar Outra
@@ -1158,7 +1158,7 @@ function CameraContent() {
             <button
               onClick={handleSave}
               disabled={scoringPreview}
-              className="flex-1 btn-primary py-3 min-h-[44px] rounded-lg text-xs sm:text-sm active:scale-98 touch-manipulation justify-center font-bold"
+              className="flex-1 btn-primary py-3 min-h-[44px] rounded-[10px] text-xs sm:text-sm active:scale-98 touch-manipulation justify-center font-bold"
             >
               <Check className="w-4 h-4" />
               Salvar Avaliação
@@ -1168,12 +1168,12 @@ function CameraContent() {
       )}
 
       {screen === "uploading" && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
-          <div className="bg-slate-900 border border-white/10 rounded-[16px] p-8 flex flex-col items-center gap-4 max-w-xs w-full text-center shadow-2xl">
-            <RefreshCcw className="w-9 h-9 animate-spin text-emerald-400" />
+        <div className="absolute inset-0 z-40 flex items-center justify-center p-6 bg-[#0D110F]/90 backdrop-blur-md">
+          <div className="bg-[#141A17] border border-white/10 rounded-[14px] p-8 flex flex-col items-center gap-4 max-w-xs w-full text-center shadow-2xl">
+            <RefreshCcw className="w-9 h-9 animate-spin text-[#74C69D]" />
             <div>
               <p className="text-white font-bold text-base">Salvando captura…</p>
-              <p className="text-slate-400 text-xs mt-1">
+              <p className="text-white/60 text-xs mt-1">
                 Enviando imagem para a ficha do animal
               </p>
             </div>
@@ -1188,8 +1188,8 @@ export default function CameraPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-[100dvh] flex flex-col items-center justify-center gap-3 bg-slate-950 text-white/60 text-sm">
-          <RefreshCcw className="w-6 h-6 animate-spin text-emerald-400" />
+        <div className="h-[100dvh] flex flex-col items-center justify-center gap-3 bg-[#0D110F] text-white/60 text-sm">
+          <RefreshCcw className="w-6 h-6 animate-spin text-[#74C69D]" />
           <span>Preparando câmera…</span>
         </div>
       }

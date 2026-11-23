@@ -20,11 +20,8 @@ import {
   Loader2,
   Bluetooth,
   BluetoothConnected,
-  WifiOff,
   Check,
   AlertTriangle,
-  Images,
-  Beef,
   Palette,
   Cpu,
 } from "lucide-react";
@@ -46,8 +43,7 @@ import {
   warmUpLocalVisionModels,
 } from "@/lib/local-onnx";
 import { useToast } from "@/components/ui/Toast";
-import { AppHeader } from "@/components/AppHeader";
-import { MobileNav } from "@/components/MobileNav";
+import { AppShell } from "@/components/AppShell";
 import ThemeToggle from "@/components/ThemeToggle";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
 
@@ -259,25 +255,22 @@ export default function ProfilePage() {
   if (authLoading || (!isAuthenticated && typeof window !== "undefined")) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-theme-bg">
-        <Loader2 className="w-7 h-7 animate-spin text-emerald-500" />
+        <Loader2 className="w-7 h-7 animate-spin text-brand" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary pb-24 sm:pb-12">
-      <AppHeader
-        title="Perfil do Operador"
-        subtitle={user?.email}
-        showBack
-        backHref="/dashboard"
-      />
-
-      <main className="flex-1 max-w-4xl mx-auto w-full px-3 sm:px-6 py-5 space-y-5">
+    <AppShell
+      title="Perfil do operador"
+      subtitle={user?.email}
+      maxWidth="lg"
+    >
+      <div className="space-y-5">
         {/* Cartão Principal do Operador */}
         <section className="card p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white font-bold text-lg flex items-center justify-center shrink-0">
+            <div className="w-14 h-14 rounded-[14px] bg-brand text-white font-bold text-lg flex items-center justify-center shrink-0">
               {initials || <UserIcon className="w-6 h-6" />}
             </div>
             <div className="min-w-0">
@@ -288,8 +281,8 @@ export default function ProfilePage() {
                 <span
                   className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md ${
                     isAdmin
-                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                      : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25"
+                      ? "bg-[#B45309]/12 text-[#B45309] dark:text-[#FBBF24] border border-[#B45309]/25"
+                      : "bg-brand-soft text-brand border border-[var(--color-brand)]/25"
                   }`}
                 >
                   {isAdmin ? "Administrador" : "Operador"}
@@ -307,30 +300,27 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 sm:w-auto shrink-0">
-            <div className="px-3 py-2 rounded-lg bg-theme-surface-2 border border-theme text-center">
-              <Beef className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 mx-auto mb-0.5" />
-              <p className="text-sm font-bold tabular-nums text-theme-primary">{herdStats.animals}</p>
-              <p className="text-[10px] text-theme-muted">Animais</p>
+          <div className="grid grid-cols-3 divide-x divide-[var(--border-subtle)] rounded-[12px] bg-theme-surface-2 border border-theme overflow-hidden sm:w-auto shrink-0">
+            <div className="px-4 py-2.5 text-center">
+              <p className="text-base font-bold tabular-nums text-theme-primary">{herdStats.animals}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted mt-0.5">Animais</p>
             </div>
-            <div className="px-3 py-2 rounded-lg bg-theme-surface-2 border border-theme text-center">
-              <Images className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 mx-auto mb-0.5" />
-              <p className="text-sm font-bold tabular-nums text-theme-primary">{herdStats.photos}</p>
-              <p className="text-[10px] text-theme-muted">Fotos</p>
+            <div className="px-4 py-2.5 text-center">
+              <p className="text-base font-bold tabular-nums text-brand">{herdStats.photos}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted mt-0.5">Fotos</p>
             </div>
-            <div className="px-3 py-2 rounded-lg bg-theme-surface-2 border border-theme text-center">
-              <WifiOff className="w-3.5 h-3.5 text-amber-500 mx-auto mb-0.5" />
-              <p className="text-sm font-bold tabular-nums text-theme-primary">{pendingSyncCount}</p>
-              <p className="text-[10px] text-theme-muted">Fila offline</p>
+            <div className="px-4 py-2.5 text-center">
+              <p className="text-base font-bold tabular-nums text-theme-primary">{pendingSyncCount}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted mt-0.5">Pendentes</p>
             </div>
           </div>
         </section>
 
         {feedback && (
           <div
-            className={`p-3.5 rounded-xl border text-xs sm:text-sm flex items-center gap-2.5 font-medium ${
+            className={`p-3.5 rounded-[10px] border text-xs sm:text-sm flex items-center gap-2.5 font-medium ${
               feedback.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                ? "bg-brand-soft border-[var(--color-brand)]/30 text-brand"
                 : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-300"
             }`}
           >
@@ -347,7 +337,7 @@ export default function ProfilePage() {
           {/* Formulário: Nome do Operador */}
           <form onSubmit={handleSaveName} className="card p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <UserIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <UserIcon className="w-4 h-4 text-brand" />
               <h2 className="text-sm font-bold text-theme-primary">Dados da conta</h2>
             </div>
 
@@ -395,7 +385,7 @@ export default function ProfilePage() {
           {/* Formulário: Alterar Senha */}
           <form onSubmit={handleChangePassword} className="card p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <KeyRound className="w-4 h-4 text-brand" />
               <h2 className="text-sm font-bold text-theme-primary">Segurança e senha</h2>
             </div>
 
@@ -488,7 +478,7 @@ export default function ProfilePage() {
                 <div
                   className={`w-9 h-9 rounded-[10px] border flex items-center justify-center shrink-0 ${
                     bleStatus === "connected"
-                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                      ? "bg-brand-soft border-[var(--color-brand)]/30 text-brand"
                       : "bg-theme-surface-2 border-theme text-theme-secondary"
                   }`}
                 >
@@ -537,7 +527,7 @@ export default function ProfilePage() {
                 <div
                   className={`w-9 h-9 rounded-[10px] border flex items-center justify-center shrink-0 ${
                     localAiStatus === "ready" || aiCachedOffline
-                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                      ? "bg-brand-soft border-[var(--color-brand)]/30 text-brand"
                       : "bg-theme-surface-2 border-theme text-theme-secondary"
                   }`}
                 >
@@ -549,7 +539,7 @@ export default function ProfilePage() {
                   </p>
                   <p className="text-[11px] text-theme-secondary">
                     {localAiStatus === "ready"
-                      ? "Ativo neste aparelho · Funciona sem internet."
+                      ? "Ativo neste aparelho para uso sem internet."
                       : aiCachedOffline
                       ? "Recursos salvos no aparelho para trabalho sem sinal."
                       : "Baixa os recursos para guiar a captura mesmo sem internet."}
@@ -579,7 +569,7 @@ export default function ProfilePage() {
               <div className="py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-[10px] bg-theme-surface-2 border border-theme flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                    <ShieldCheck className="w-4 h-4 text-brand" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-theme-primary">
@@ -620,9 +610,7 @@ export default function ProfilePage() {
             <span>Sair da conta</span>
           </button>
         </section>
-      </main>
-
-      <MobileNav />
-    </div>
+      </div>
+    </AppShell>
   );
 }

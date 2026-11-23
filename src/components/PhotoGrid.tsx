@@ -99,8 +99,8 @@ function PhotoCard({
 
       <div className="absolute inset-x-2.5 bottom-2.5 z-10 flex items-center justify-between gap-2 pointer-events-none">
         {icsCalculated ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-[7px] text-[11px] font-bold tabular-nums bg-emerald-600 text-white shadow-xs">
-            ICS {photo.ics?.score?.toFixed(2)}
+          <span className="inline-flex items-center px-2 py-0.5 rounded-[7px] text-[11px] font-bold tabular-nums bg-brand text-white shadow-xs">
+            ICS {photo.ics?.score?.toFixed(2).replace('.', ',')}
           </span>
         ) : icsPending ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded-[7px] text-[10px] font-semibold bg-amber-500 text-slate-950">

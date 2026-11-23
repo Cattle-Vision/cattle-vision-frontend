@@ -76,7 +76,7 @@ export function PwaInstallPrompt({
           onClick={handleInstallClick}
           title="Instalar aplicativo"
           aria-label="Instalar aplicativo"
-          className={`w-9 h-9 rounded-[10px] border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition inline-flex items-center justify-center touch-manipulation active:scale-95 ${className}`}
+          className={`w-9 h-9 rounded-[10px] border border-theme bg-brand-soft hover:opacity-90 transition inline-flex items-center justify-center touch-manipulation active:scale-95 ${className}`}
         >
           <Smartphone className="w-4 h-4" />
         </button>
@@ -86,7 +86,7 @@ export function PwaInstallPrompt({
         <button
           type="button"
           onClick={handleInstallClick}
-          className={`inline-flex items-center justify-center gap-1.5 px-3 h-9 text-xs font-semibold rounded-[10px] border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition active:scale-95 touch-manipulation shrink-0 ${className}`}
+          className={`inline-flex items-center justify-center gap-1.5 px-3 h-9 text-xs font-semibold rounded-[10px] border border-theme bg-brand-soft hover:opacity-90 transition active:scale-95 touch-manipulation shrink-0 ${className}`}
         >
           <Download className="w-3.5 h-3.5" />
           <span>Instalar App</span>
@@ -96,7 +96,7 @@ export function PwaInstallPrompt({
       {variant === "banner" && (
         <div className={`flex items-center justify-between gap-3 ${className}`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-[10px] bg-emerald-500/12 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-[10px] bg-brand-soft flex items-center justify-center shrink-0">
               <Smartphone className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -130,7 +130,7 @@ export function PwaInstallPrompt({
               <X className="w-4 h-4" />
             </button>
 
-            <div className="w-10 h-10 rounded-[10px] bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
+            <div className="w-10 h-10 rounded-[10px] bg-brand-soft text-brand flex items-center justify-center mb-3">
               <Smartphone className="w-5 h-5" />
             </div>
 
@@ -143,16 +143,16 @@ export function PwaInstallPrompt({
 
             <ol className="text-xs text-theme-primary space-y-2.5 mb-5 card-subtle p-3.5">
               <li className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                <span className="w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                   1
                 </span>
                 <span>
                   Toque em <strong>Compartilhar</strong>{" "}
-                  <Share className="w-3.5 h-3.5 inline text-emerald-600 dark:text-emerald-400 mx-0.5" /> na barra do navegador.
+                  <Share className="w-3.5 h-3.5 inline text-brand mx-0.5" /> na barra do navegador.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                <span className="w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                   2
                 </span>
                 <span>

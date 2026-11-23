@@ -27,6 +27,7 @@ import {
   Stethoscope,
   Syringe,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -60,7 +61,8 @@ export type AnimalTabId =
   | "locations"
   | "vaccines"
   | "diseases"
-  | "observations";
+  | "observations"
+  | "custody";
 
 const OBSERVATION_CATEGORY_LABELS: Record<ObservationCategory, string> = {
   GERAL: "Geral",
@@ -96,6 +98,8 @@ interface AnimalHealthTabsProps {
   onTabChange: (tab: AnimalTabId) => void;
   onReloadAnimal: () => Promise<void>;
   galleryContent: React.ReactNode;
+  custodyContent?: React.ReactNode;
+  collaboratorsCount?: number;
 }
 
 export default function AnimalHealthTabs({
@@ -105,6 +109,8 @@ export default function AnimalHealthTabs({
   onTabChange,
   onReloadAnimal,
   galleryContent,
+  custodyContent,
+  collaboratorsCount = 0,
 }: AnimalHealthTabsProps) {
   const { toast, confirm } = useToast();
 
@@ -494,16 +500,26 @@ export default function AnimalHealthTabs({
     },
     {
       id: "observations",
-      label: "Observações Gerais",
+      label: "Observações",
       icon: <FileText className="w-3.5 h-3.5" />,
       count: observations.length,
     },
+    ...(custodyContent
+      ? [
+          {
+            id: "custody" as const,
+            label: "Equipe",
+            icon: <Users className="w-3.5 h-3.5" />,
+            count: collaboratorsCount,
+          },
+        ]
+      : []),
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Navegação em abas responsiva */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+    <div className="space-y-5">
+      {/* Navegação em abas sublinhada editorial */}
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-theme">
         {tabs.map((tab) => {
           const active = activeTab === tab.id;
           return (
@@ -511,17 +527,17 @@ export default function AnimalHealthTabs({
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 border ${
+              className={`px-3.5 py-2.5 text-xs sm:text-[13px] font-semibold transition whitespace-nowrap inline-flex items-center gap-1.5 border-b-2 -mb-px ${
                 active
-                  ? "bg-emerald-600 text-white border-emerald-600"
-                  : "bg-theme-surface text-theme-secondary border-theme hover:text-theme-primary"
+                  ? "border-[var(--color-brand)] text-theme-primary"
+                  : "border-transparent text-theme-muted hover:text-theme-primary"
               }`}
             >
               {tab.icon}
               <span>{tab.label}</span>
               <span
-                className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded ${
-                  active ? "bg-white/20 text-white" : "bg-theme-surface-2 text-theme-muted"
+                className={`text-[10px] tabular-nums px-1.5 py-0.5 rounded-full ${
+                  active ? "bg-brand-soft font-bold" : "bg-theme-surface-2 text-theme-muted"
                 }`}
               >
                 {tab.count}
@@ -530,6 +546,8 @@ export default function AnimalHealthTabs({
           );
         })}
       </div>
+
+      {activeTab === "custody" && custodyContent}
 
       {/* Conteúdo da Aba Ativa */}
       {activeTab === "gallery" && galleryContent}
