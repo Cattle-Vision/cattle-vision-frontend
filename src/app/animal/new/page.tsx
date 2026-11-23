@@ -263,8 +263,8 @@ function NewAnimalForm() {
       <AppHeader
         showBack
         backHref="/dashboard"
-        title="Novo Animal"
-        subtitle="Cadastro zootécnico e identificador"
+        title="Novo animal"
+        subtitle="Cadastro no rebanho"
       />
 
       <main className="flex-1 p-4 sm:p-6">
@@ -273,16 +273,16 @@ function NewAnimalForm() {
             onSubmit={(e) => handleSubmit(e, true)}
             className="card p-5 sm:p-6 flex flex-col gap-5"
           >
-            {/* Painel de leitura RFID Bluetooth ESP32 diretamente no cadastro */}
-            <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Leitura via Bluetooth */}
+            <div className="p-3.5 card-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                  className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${
                     bleStatus === "connected"
                       ? "bg-emerald-600 text-white"
                       : bleStatus === "connecting"
-                      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
-                      : "bg-theme-surface-2 text-emerald-600 dark:text-emerald-400 border border-theme"
+                        ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
+                        : "bg-theme-surface text-emerald-700 dark:text-emerald-400 border border-theme"
                   }`}
                 >
                   {bleStatus === "connected" ? (
@@ -294,19 +294,19 @@ function NewAnimalForm() {
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-theme-primary truncate">
                     {bleStatus === "connected"
-                      ? `Leitor conectado (${bleDeviceName || "CattleVision-RFID"})`
+                      ? `Leitor conectado (${bleDeviceName || "Bluetooth"})`
                       : bleStatus === "connecting"
-                      ? "Conectando ao leitor RFID…"
-                      : "Ler tag via Bluetooth (ESP32)"}
+                        ? "Conectando ao leitor…"
+                        : "Ler brinco via Bluetooth"}
                   </p>
                   <p className="text-[11px] text-theme-secondary truncate">
                     {!bleSupported
-                      ? "Use Chrome/Edge/Bluefy para parear via Web Bluetooth."
+                      ? "Navegador sem suporte a leitura direta por Bluetooth."
                       : bleStatus === "connected"
-                      ? bleScannedNow
-                        ? "Última tag recebida do bastão e preenchida abaixo."
-                        : "Aproxime o bastão da tag do animal para preencher automaticamente."
-                      : "Conecte o bastão RFID para preencher o código sem digitar."}
+                        ? bleScannedNow
+                          ? "Código lido e preenchido abaixo."
+                          : "Aproxime o leitor do brinco para preencher automaticamente."
+                        : "Conecte o bastão para preencher o código sem digitar."}
                   </p>
                 </div>
               </div>
@@ -318,30 +318,28 @@ function NewAnimalForm() {
                   disabled={bleStatus === "connecting"}
                   className={`${
                     bleStatus === "connected" ? "btn-secondary" : "btn-primary"
-                  } py-2 px-3 min-h-[36px] text-xs font-semibold shrink-0`}
+                  } !py-2 !px-3 !min-h-[36px] text-xs shrink-0`}
                 >
                   {bleStatus === "connecting" ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Bluetooth className="w-3.5 h-3.5" />
                   )}
-                  <span>{bleStatus === "connected" ? "Desconectar" : "Parear Leitor"}</span>
+                  <span>{bleStatus === "connected" ? "Desconectar" : "Conectar leitor"}</span>
                 </button>
               )}
             </div>
 
-            {/* Aviso quando a Tag veio de leitura do ESP32 */}
             {initialTag && (
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300">
+              <div className="p-3 rounded-[10px] bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2.5 text-xs text-emerald-700 dark:text-emerald-300">
                 <Tag className="w-4 h-4 shrink-0" />
                 <span>
-                  Tag RFID <strong>{initialTag.length > 14 ? `${initialTag.slice(0, 8)}…` : initialTag}</strong> preenchida pela leitura anterior.
+                  Código <strong>{initialTag.length > 14 ? `${initialTag.slice(0, 8)}…` : initialTag}</strong> preenchido da consulta anterior.
                 </span>
               </div>
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Apelido / Nome */}
               <div>
                 <label className="field-label" htmlFor="name-field">
                   Apelido ou nome
@@ -357,23 +355,22 @@ function NewAnimalForm() {
                   autoComplete="off"
                 />
                 <p className="text-[11px] text-theme-secondary mt-1">
-                  Facilita a busca diária no curral.
+                  Facilita encontrar o animal no dia a dia.
                 </p>
               </div>
 
-              {/* Código RFID / Brinco */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="field-label !mb-0" htmlFor="tag-field">
-                    Brinco ou RFID <span className="text-red-500">*</span>
+                    Brinco ou identificador <span className="text-red-500">*</span>
                   </label>
                   <button
                     type="button"
                     onClick={generateSampleTag}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
                   >
                     <Shuffle className="w-3 h-3" />
-                    Gerar EPC
+                    <span>Gerar código</span>
                   </button>
                 </div>
                 <input
@@ -384,13 +381,13 @@ function NewAnimalForm() {
                     setBleScannedNow(false);
                     setField("tag", e.target.value.toUpperCase());
                   }}
-                  className="field-input font-mono text-xs tracking-wider uppercase font-semibold"
-                  placeholder="Ex: E2801160... ou NEL-0142"
+                  className="field-input font-mono-tag text-xs tracking-wider uppercase font-semibold"
+                  placeholder="Ex: NEL-0142 ou código lido"
                   required
                   autoComplete="off"
                 />
                 <p className="text-[11px] text-theme-secondary mt-1">
-                  Número do brinco visual ou código lido via Bluetooth.
+                  Número do brinco visual ou código eletrônico.
                 </p>
               </div>
             </div>

@@ -146,10 +146,10 @@ export default function ProfilePage() {
     setAiCachedOffline(cached || warmed);
     if (warmed) {
       setLocalAiStatus("ready");
-      toast("Modelos ONNX prontos para uso local e offline.", "success");
+      toast("Modo offline pronto para capturas sem sinal.", "success");
     } else {
       setLocalAiStatus("unavailable");
-      toast("Não foi possível carregar o motor local neste navegador.", "error");
+      toast("Não foi possível preparar o modo offline neste navegador.", "error");
     }
   };
 
@@ -348,11 +348,11 @@ export default function ProfilePage() {
           <form onSubmit={handleSaveName} className="card p-5 space-y-4">
             <div className="flex items-center gap-2">
               <UserIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <h2 className="text-sm font-bold text-theme-primary">Dados da Conta</h2>
+              <h2 className="text-sm font-bold text-theme-primary">Dados da conta</h2>
             </div>
 
             <div>
-              <label htmlFor="profile-name" className="block text-xs font-semibold text-theme-secondary mb-1.5">
+              <label htmlFor="profile-name" className="field-label">
                 Nome completo
               </label>
               <input
@@ -362,33 +362,33 @@ export default function ProfilePage() {
                 minLength={2}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="input-field"
+                className="field-input"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-theme-secondary mb-1.5">
+              <label className="field-label">
                 E-mail de acesso
               </label>
               <input
                 type="email"
                 value={user?.email || ""}
                 disabled
-                className="input-field opacity-70 cursor-not-allowed"
+                className="field-input opacity-70 cursor-not-allowed"
               />
             </div>
 
             <button
               type="submit"
               disabled={savingProfile}
-              className="btn-primary w-full py-2.5 text-xs sm:text-sm"
+              className="btn-primary w-full text-xs sm:text-sm"
             >
               {savingProfile ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              Salvar Nome
+              <span>Salvar nome</span>
             </button>
           </form>
 
@@ -396,11 +396,11 @@ export default function ProfilePage() {
           <form onSubmit={handleChangePassword} className="card p-5 space-y-4">
             <div className="flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <h2 className="text-sm font-bold text-theme-primary">Segurança e Senha</h2>
+              <h2 className="text-sm font-bold text-theme-primary">Segurança e senha</h2>
             </div>
 
             <div>
-              <label htmlFor="cur-pass" className="block text-xs font-semibold text-theme-secondary mb-1.5">
+              <label htmlFor="cur-pass" className="field-label">
                 Senha atual
               </label>
               <input
@@ -409,13 +409,13 @@ export default function ProfilePage() {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="••••••••"
-                className="input-field"
+                className="field-input"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label htmlFor="new-pass" className="block text-xs font-semibold text-theme-secondary mb-1.5">
+                <label htmlFor="new-pass" className="field-label">
                   Nova senha
                 </label>
                 <input
@@ -425,11 +425,11 @@ export default function ProfilePage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Mín. 6 caracteres"
-                  className="input-field"
+                  className="field-input"
                 />
               </div>
               <div>
-                <label htmlFor="conf-pass" className="block text-xs font-semibold text-theme-secondary mb-1.5">
+                <label htmlFor="conf-pass" className="field-label">
                   Confirmar senha
                 </label>
                 <input
@@ -439,7 +439,7 @@ export default function ProfilePage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repita a senha"
-                  className="input-field"
+                  className="field-input"
                 />
               </div>
             </div>
@@ -447,48 +447,48 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={savingPassword}
-              className="btn-secondary w-full py-2.5 text-xs sm:text-sm"
+              className="btn-secondary w-full text-xs sm:text-sm"
             >
               {savingPassword ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <KeyRound className="w-4 h-4" />
               )}
-              Atualizar Senha
+              <span>Atualizar senha</span>
             </button>
           </form>
         </div>
 
         {/* Hardware, Aparência e Administração */}
         <section className="card p-5 space-y-4">
-          <h2 className="text-sm font-bold text-theme-primary">Preferências e Equipamento</h2>
+          <h2 className="text-sm font-bold text-theme-primary">Preferências e equipamento</h2>
 
           <div className="divide-y divide-[var(--border-subtle)]">
             {/* Tema */}
             <div className="py-3 first:pt-0 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-lg bg-theme-surface-2 border border-theme flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-[10px] bg-theme-surface-2 border border-theme flex items-center justify-center shrink-0">
                   <Palette className="w-4 h-4 text-theme-secondary" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-semibold text-theme-primary">
-                    Tema de exibição
+                    Tema visual
                   </p>
                   <p className="text-[11px] text-theme-secondary">
-                    Alterna entre modo claro de campo e escuro noturno.
+                    Alterna entre modo claro de campo e modo escuro.
                   </p>
                 </div>
               </div>
               <ThemeToggle />
             </div>
 
-            {/* Leitor Bluetooth RFID */}
+            {/* Leitor Bluetooth */}
             <div className="py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${
+                  className={`w-9 h-9 rounded-[10px] border flex items-center justify-center shrink-0 ${
                     bleStatus === "connected"
-                      ? "bg-blue-500/15 border-blue-500/30 text-blue-600 dark:text-blue-400"
+                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
                       : "bg-theme-surface-2 border-theme text-theme-secondary"
                   }`}
                 >
@@ -500,14 +500,14 @@ export default function ProfilePage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-semibold text-theme-primary">
-                    Leitor RFID Bluetooth (ESP32)
+                    Leitor de brinco Bluetooth
                   </p>
                   <p className="text-[11px] text-theme-secondary">
                     {!bleSupported
-                      ? "Web Bluetooth indisponível neste navegador (use Chrome/Edge)."
+                      ? "Navegador sem suporte a leitura direta por Bluetooth."
                       : bleStatus === "connected"
-                      ? `Conectado a ${bleDeviceName || "CattleVision-RFID"}`
-                      : "Nenhum bastão RFID pareado nesta sessão."}
+                      ? `Conectado a ${bleDeviceName || "leitor"}`
+                      : "Nenhum leitor pareado no momento."}
                   </p>
                 </div>
               </div>
@@ -517,29 +517,27 @@ export default function ProfilePage() {
                   type="button"
                   onClick={handleBleToggle}
                   disabled={bleStatus === "connecting"}
-                  className={
-                    bleStatus === "connected"
-                      ? "btn-secondary py-2 px-3 min-h-[36px] text-xs"
-                      : "btn-primary py-2 px-3 min-h-[36px] text-xs"
-                  }
+                  className={`${
+                    bleStatus === "connected" ? "btn-secondary" : "btn-primary"
+                  } !py-2 !px-3 !min-h-[36px] text-xs`}
                 >
                   {bleStatus === "connecting" ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Bluetooth className="w-3.5 h-3.5" />
                   )}
-                  {bleStatus === "connected" ? "Desconectar" : "Parear Bastão"}
+                  <span>{bleStatus === "connected" ? "Desconectar" : "Parear leitor"}</span>
                 </button>
               )}
             </div>
 
-            {/* Edge AI Offline (ONNX WebAssembly) */}
+            {/* Modo Offline da Câmera */}
             <div className="py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={`w-9 h-9 rounded-lg border flex items-center justify-center shrink-0 ${
+                  className={`w-9 h-9 rounded-[10px] border flex items-center justify-center shrink-0 ${
                     localAiStatus === "ready" || aiCachedOffline
-                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                      ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
                       : "bg-theme-surface-2 border-theme text-theme-secondary"
                   }`}
                 >
@@ -547,14 +545,14 @@ export default function ProfilePage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-semibold text-theme-primary">
-                    IA Local de Enquadramento (Offline)
+                    Modo offline da câmera
                   </p>
                   <p className="text-[11px] text-theme-secondary">
                     {localAiStatus === "ready"
-                      ? "Modelos ONNX carregados em memória · Funciona sem internet."
+                      ? "Ativo neste aparelho · Funciona sem internet."
                       : aiCachedOffline
-                      ? "Pesos ONNX salvos no cache offline do aparelho."
-                      : "Roda no aparelho sem internet; apenas a futura IA de ICS fica no servidor."}
+                      ? "Recursos salvos no aparelho para trabalho sem sinal."
+                      : "Baixa os recursos para guiar a captura mesmo sem internet."}
                   </p>
                 </div>
               </div>
@@ -563,44 +561,42 @@ export default function ProfilePage() {
                 type="button"
                 onClick={handlePrepareOfflineAi}
                 disabled={localAiStatus === "loading"}
-                className={
-                  localAiStatus === "ready"
-                    ? "btn-secondary py-2 px-3 min-h-[36px] text-xs"
-                    : "btn-primary py-2 px-3 min-h-[36px] text-xs"
-                }
+                className={`${
+                  localAiStatus === "ready" ? "btn-secondary" : "btn-primary"
+                } !py-2 !px-3 !min-h-[36px] text-xs`}
               >
                 {localAiStatus === "loading" ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Cpu className="w-3.5 h-3.5" />
                 )}
-                {localAiStatus === "ready" ? "IA Pronta" : "Preparar IA Offline"}
+                <span>{localAiStatus === "ready" ? "Offline pronto" : "Preparar offline"}</span>
               </button>
             </div>
 
-            {/* Painel Admin */}
+            {/* Painel de Gestão */}
             {isAdmin && (
               <div className="py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-amber-500/12 border border-amber-500/25 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <div className="w-9 h-9 rounded-[10px] bg-theme-surface-2 border border-theme flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-theme-primary">
-                      Administração do Sistema
+                      Central de Gestão
                     </p>
                     <p className="text-[11px] text-theme-secondary">
-                      Gerenciar operadores, usuários e banco fotográfico.
+                      Gerenciar operadores, usuários e todo o banco de capturas.
                     </p>
                   </div>
                 </div>
-                <Link href="/admin" className="btn-secondary py-2 px-3 min-h-[36px] text-xs">
-                  Abrir Admin
+                <Link href="/admin" className="btn-secondary !py-2 !px-3 !min-h-[36px] text-xs">
+                  Abrir gestão
                 </Link>
               </div>
             )}
 
-            {/* Instalação PWA */}
+            {/* Instalação App */}
             <div className="pt-3 flex items-center justify-between gap-3 empty:hidden">
               <PwaInstallPrompt variant="banner" className="w-full" />
             </div>
@@ -610,18 +606,18 @@ export default function ProfilePage() {
         {/* Encerrar Sessão */}
         <section className="card p-5 border-red-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-theme-primary">Sessão do Operador</h2>
+            <h2 className="text-sm font-bold text-theme-primary">Sair da conta</h2>
             <p className="text-xs text-theme-secondary mt-0.5">
-              Encerra o acesso autenticado neste aparelho mantendo os dados salvos no servidor.
+              Encerra sua sessão neste aparelho mantendo seus dados protegidos.
             </p>
           </div>
           <button
             type="button"
             onClick={handleLogout}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-semibold transition active:scale-[0.98] shrink-0"
+            className="btn-danger !py-2.5 !px-4 text-xs sm:text-sm shrink-0"
           >
             <LogOut className="w-4 h-4" />
-            Sair da Conta
+            <span>Sair da conta</span>
           </button>
         </section>
       </main>

@@ -26,7 +26,6 @@ import {
   Activity,
   SwitchCamera,
   Compass,
-  Clock,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { compressImageFile, formatBytes } from "@/lib/image-client";
@@ -392,10 +391,10 @@ function CameraContent() {
           } else {
             setLiveStatus(
               res.score >= 70
-                ? "Garupa confirmada pela IA"
+                ? "Enquadramento ideal"
                 : res.score >= 40
-                ? "Traseira detectada · Pode capturar"
-                : "Aproxime e centralize a garupa"
+                ? "Posição boa · Pode fotografar"
+                : "Aproxime e centralize o animal"
             );
             if (res.box && res.box.w > 0 && res.box.h > 0) {
               const { w, h } = res.box;
@@ -691,41 +690,34 @@ function CameraContent() {
         </div>
 
         <div className="text-center max-w-sm">
-          <h2 className="text-2xl font-extrabold text-white mb-2">
-            {savedOffline ? "Foto salva no dispositivo!" : "Foto e Registro Salvos!"}
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {savedOffline ? "Foto salva no aparelho" : "Foto salva"}
           </h2>
-          <p className="text-slate-400 text-sm leading-relaxed">
+          <p className="text-slate-300 text-sm leading-relaxed">
             {savedOffline ? (
               <>
-                A imagem de <strong className="text-white">{animalName || "animal"}</strong> será
-                sincronizada com o servidor assim que houver conexão com a internet.
+                A foto de <strong className="text-white">{animalName || "animal"}</strong> será
+                enviada automaticamente assim que houver conexão.
               </>
             ) : (
               <>
-                Imagem anatômica de{" "}
-                <strong className="text-white">{animalName || "animal"}</strong> salva com sucesso.
-                A IA de cálculo de ICS e aptidão para abate ainda está em desenvolvimento e será
-                aplicada futuramente sobre esta foto.
+                Foto de <strong className="text-white">{animalName || "animal"}</strong> salva com
+                sucesso e pronta para avaliação de ICS na ficha.
               </>
             )}
           </p>
 
           {finalScore !== null && !savedOffline && (
-            <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="mt-4 flex justify-center">
               <div
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold border ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold border ${
                   finalScore >= 40
                     ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
                     : "bg-amber-500/15 text-amber-300 border-amber-500/30"
                 }`}
               >
                 <Activity className="w-3.5 h-3.5" />
-                Enquadramento Anatômico: {Math.round(finalScore)}%
-              </div>
-
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-400/25">
-                <Clock className="w-3.5 h-3.5" />
-                Avaliação de ICS e Abate: Em desenvolvimento
+                <span>Enquadramento: {Math.round(finalScore)}%</span>
               </div>
             </div>
           )}
@@ -734,15 +726,15 @@ function CameraContent() {
         <div className="flex flex-col gap-3 w-full max-w-xs mt-2">
           <button
             onClick={() => router.push(`/animal/${animalId}`)}
-            className="btn-primary w-full py-4 text-sm"
+            className="btn-primary w-full py-3.5 text-sm"
           >
-            Ver Ficha do Animal
+            Ver ficha e avaliar ICS
           </button>
           <button
             onClick={retake}
-            className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-bold text-white transition"
+            className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 rounded-[10px] text-sm font-semibold text-white transition"
           >
-            Tirar Outra Foto
+            Tirar outra foto
           </button>
         </div>
       </div>
@@ -823,30 +815,30 @@ function CameraContent() {
 
         <div className="text-center min-w-0 px-1">
           <p className="text-white font-bold text-xs sm:text-sm truncate max-w-[160px] sm:max-w-[260px]">
-            {animalName || "Captura Guiada"}
+            {animalName || "Captura guiada"}
           </p>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-400 truncate">
+          <p className="text-[10px] font-medium text-emerald-300 truncate">
             {localAiStatus === "ready"
               ? isOffline
-                ? "IA Local · Offline"
-                : "IA Local · No Aparelho"
+                ? "Modo offline ativo"
+                : "Guia automático ativo"
               : localAiStatus === "loading"
-              ? "Carregando IA Local..."
-              : "Vista Posterior · Garupa"}
+              ? "Preparando guia…"
+              : "Enquadre a traseira do animal"}
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setLiveAiEnabled((v) => !v)}
-          className={`px-2.5 py-1.5 min-h-[34px] rounded-md text-[11px] font-semibold border shrink-0 transition ${
+          className={`px-2.5 py-1.5 min-h-[34px] rounded-[8px] text-[11px] font-semibold border shrink-0 transition ${
             liveAiEnabled
               ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
               : "bg-slate-950/80 border-white/15 text-slate-300"
           }`}
-          title="Alternar análise IA automática durante o preview"
+          title="Alternar guia automático na prévia"
         >
-          {liveAiEnabled ? "IA ao vivo" : "IA pausada"}
+          {liveAiEnabled ? "Guia ativo" : "Guia pausado"}
         </button>
       </div>
 
@@ -1074,35 +1066,35 @@ function CameraContent() {
                     }}
                   >
                     <span
-                      className={`absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
+                      className={`absolute -top-5 left-0 px-1.5 py-0.5 rounded-[6px] text-[10px] font-bold whitespace-nowrap ${
                         previewAnalysis.score >= 40
                           ? "bg-emerald-500 text-slate-950"
                           : "bg-amber-400 text-slate-950"
                       }`}
                     >
-                      IA · {Math.round(previewAnalysis.score)}%
+                      Enquadramento {Math.round(previewAnalysis.score)}%
                     </span>
                   </div>
                 )}
             </div>
             {imageMeta && (
-              <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-white/10 text-slate-300 text-[11px] font-semibold px-2.5 py-0.5 rounded-md backdrop-blur-md">
+              <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-white/10 text-slate-300 text-[11px] font-semibold px-2.5 py-0.5 rounded-[7px] backdrop-blur-md">
                 {imageMeta}
               </div>
             )}
           </div>
 
           <div className="px-3 pb-2 max-w-lg mx-auto w-full">
-            <div className="rounded-lg bg-slate-900/95 border border-white/10 p-3.5 backdrop-blur-md">
+            <div className="rounded-[12px] bg-slate-900/95 border border-white/10 p-3.5 backdrop-blur-md">
               {scoringPreview ? (
                 <div className="flex items-center gap-3 py-1">
                   <Loader2 className="w-5 h-5 animate-spin text-emerald-400 shrink-0" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-white">
-                      Analisando imagem com IA antes do envio…
+                      Verificando enquadramento…
                     </p>
                     <p className="text-[11px] text-slate-400">
-                      Verificando enquadramento da traseira e nitidez
+                      Analisando nitidez e posição do animal
                     </p>
                   </div>
                 </div>
@@ -1177,12 +1169,12 @@ function CameraContent() {
 
       {screen === "uploading" && (
         <div className="absolute inset-0 z-40 flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
-          <div className="bg-slate-900 border border-white/10 rounded-3xl p-8 flex flex-col items-center gap-4 max-w-xs w-full text-center shadow-2xl">
-            <RefreshCcw className="w-10 h-10 animate-spin text-emerald-400" />
+          <div className="bg-slate-900 border border-white/10 rounded-[16px] p-8 flex flex-col items-center gap-4 max-w-xs w-full text-center shadow-2xl">
+            <RefreshCcw className="w-9 h-9 animate-spin text-emerald-400" />
             <div>
-              <p className="text-white font-extrabold text-base">Processando e salvando imagem…</p>
+              <p className="text-white font-bold text-base">Salvando captura…</p>
               <p className="text-slate-400 text-xs mt-1">
-                Salvando foto validada (módulo de ICS em desenvolvimento)
+                Enviando imagem para a ficha do animal
               </p>
             </div>
           </div>

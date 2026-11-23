@@ -23,12 +23,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const loggedUser = await login(email, password);
-      if (loggedUser.role === "ADMIN") {
-        router.push("/dashboard");
-      } else {
-        router.push("/dashboard");
-      }
+      await login(email, password);
+      router.push("/dashboard");
     } catch (err: any) {
       setError(err?.message || "E-mail ou senha incorretos");
     } finally {
@@ -38,8 +34,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[100dvh] flex bg-theme-bg text-theme-primary">
-      {/* Painel lateral — Visível em telas grandes */}
-      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col justify-between p-10 bg-[#10161D] text-white border-r border-slate-800">
+      {/* Lateral Institucional (Desktop) */}
+      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col justify-between p-10 bg-[#0F1714] text-white border-r border-emerald-950/60">
         <div>
           <Link href="/" className="inline-flex items-center gap-2.5">
             <BrandMark className="w-9 h-9" />
@@ -49,47 +45,47 @@ export default function LoginPage() {
           </Link>
 
           <div className="mt-14">
-            <p className="font-mono-tag text-[11px] uppercase tracking-wider text-emerald-400 mb-3">
-              Acesso do Operador
-            </p>
+            <span className="text-xs font-semibold text-emerald-400 block mb-3">
+              Acesso ao sistema
+            </span>
             <h1 className="text-2xl xl:text-3xl font-bold leading-tight tracking-tight">
-              Controle de rebanho e registro fotográfico em campo.
+              Controle completo do rebanho em campo e no escritório.
             </h1>
             <p className="mt-4 text-sm text-slate-300 leading-relaxed">
-              Acesse as fichas do lote, faça capturas padronizadas da garupa e acompanhe a
-              condição corporal de cada animal.
+              Acesse as fichas do lote, faça capturas guiadas e acompanhe o escore corporal (ICS)
+              de cada animal.
             </p>
           </div>
         </div>
 
-        <div className="space-y-2.5 pt-6 border-t border-slate-800 text-xs text-slate-300">
+        <div className="space-y-2.5 pt-6 border-t border-white/10 text-xs text-slate-300">
           <div className="flex items-center gap-2">
             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Identificação por brinco, apelido ou RFID BLE</span>
+            <span>Busca por apelido, brinco ou leitor Bluetooth</span>
           </div>
           <div className="flex items-center gap-2">
             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Validação instantânea de enquadramento na câmera</span>
+            <span>Avaliação corporal na escala de 1,0 a 5,0</span>
           </div>
           <div className="flex items-center gap-2">
             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Sincronização automática após trabalho offline</span>
+            <span>Sincronização automática quando offline</span>
           </div>
         </div>
       </div>
 
-      {/* Área do Formulário */}
+      {/* Formulário */}
       <div className="flex-1 flex flex-col justify-center items-center p-5 sm:p-10">
         <div className="w-full max-w-md">
-          {/* Topo */}
           <div className="flex items-center justify-between mb-6">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-theme-secondary hover:text-theme-primary"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-theme-secondary hover:text-theme-primary"
             >
               <ArrowLeft className="w-4 h-4" />
-              Início
+              <span>Início</span>
             </Link>
+
             <div className="flex items-center gap-2.5">
               <div className="lg:hidden flex items-center gap-2">
                 <BrandMark className="w-7 h-7" />
@@ -101,22 +97,22 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="card p-5 sm:p-7">
+          <div className="card p-6 sm:p-7">
             <h2 className="text-xl sm:text-2xl font-bold text-theme-primary tracking-tight mb-1">
-              Acessar conta
+              Entrar na conta
             </h2>
             <p className="text-xs sm:text-sm text-theme-secondary mb-5">
-              Entre com suas credenciais de acesso para gerenciar o rebanho.
+              Informe seu e-mail e senha para gerenciar o rebanho.
             </p>
 
             {error && (
               <div className="error-banner mb-4 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
                 <label className="field-label" htmlFor="email">
                   E-mail
@@ -126,7 +122,7 @@ export default function LoginPage() {
                   <input
                     id="email"
                     name="email"
-                    type="text"
+                    type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -169,21 +165,21 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full py-3.5 text-base mt-1"
+                className="btn-primary w-full py-3 text-sm sm:text-base mt-1"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {loading ? "Autenticando…" : "Entrar no Sistema"}
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{loading ? "Entrando…" : "Entrar"}</span>
               </button>
             </form>
 
             <div className="mt-6 pt-5 border-t border-theme text-center">
               <p className="text-sm text-theme-secondary">
-                Ainda não possui conta de operador?{" "}
+                Ainda não tem conta?{" "}
                 <Link
                   href="/register"
-                  className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                  className="font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
                 >
-                  Criar conta grátis
+                  Criar cadastro
                 </Link>
               </p>
             </div>

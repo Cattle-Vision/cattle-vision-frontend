@@ -592,7 +592,7 @@ export default function AnimalProfilePage() {
         showBack
         backHref="/dashboard"
         title={displayName}
-        subtitle={`${animal.breed} · ${animal.sex} · ${isOwner ? "Proprietário" : "Compartilhado"}`}
+        subtitle={`${animal.breed} — ${animal.sex}`}
       />
 
       <main className="flex-1 p-3 sm:p-6 max-w-6xl mx-auto w-full pb-24 sm:pb-8">
@@ -924,10 +924,10 @@ export default function AnimalProfilePage() {
                     <div className="flex flex-wrap justify-between items-center gap-3 mb-4 pb-3 border-b border-theme">
                       <div>
                         <h2 className="text-base font-bold text-theme-primary">
-                          Histórico Fotográfico ({photoCount})
+                          Galeria ({photoCount})
                         </h2>
                         <p className="text-xs text-theme-secondary mt-0.5">
-                          Capturas armazenadas e validadas quanto ao enquadramento anatômico
+                          Toque em uma imagem para ampliar ou avaliar
                         </p>
                       </div>
 
@@ -936,7 +936,7 @@ export default function AnimalProfilePage() {
                           type="button"
                           onClick={handleRecalibrateAnimal}
                           disabled={recalibratingAnimal}
-                          className="btn-secondary py-1.5 px-3 min-h-[38px] text-xs font-semibold shrink-0 tabular-nums"
+                          className="btn-secondary !py-1.5 !px-3 !min-h-[36px] text-xs shrink-0 tabular-nums"
                         >
                           {recalibratingAnimal ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
@@ -946,9 +946,9 @@ export default function AnimalProfilePage() {
                           <span>
                             {recalibratingAnimal
                               ? recalibratingProgress
-                                ? `Recalculando ${recalibratingProgress.current}/${recalibratingProgress.total}…`
-                                : "Recalculando…"
-                              : "Recalcular enquadramento"}
+                                ? `Reavaliando ${recalibratingProgress.current}/${recalibratingProgress.total}…`
+                                : "Reavaliando…"
+                              : "Reavaliar enquadramento"}
                           </span>
                         </button>
                       )}
@@ -1136,12 +1136,12 @@ export default function AnimalProfilePage() {
 
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <label className="field-label !mb-0">Identificador RFID / Brinco</label>
+                  <label className="field-label !mb-0">Brinco ou identificador</label>
                   {(isOwner || isAdmin) && bleSupported && (
                     <button
                       type="button"
                       onClick={handleToggleEditBle}
-                      className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded border transition ${
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[7px] border transition ${
                         bleStatus === "connected"
                           ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
                           : "bg-theme-surface-2 text-theme-secondary border-theme hover:text-theme-primary"
@@ -1154,10 +1154,10 @@ export default function AnimalProfilePage() {
                       )}
                       <span>
                         {bleStatus === "connected"
-                          ? "Leitor ativo"
+                          ? "Leitor conectado"
                           : bleStatus === "connecting"
-                          ? "Pareando…"
-                          : "Ler RFID BLE"}
+                            ? "Conectando…"
+                            : "Ler via Bluetooth"}
                       </span>
                     </button>
                   )}

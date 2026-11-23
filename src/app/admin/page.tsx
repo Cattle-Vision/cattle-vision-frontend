@@ -246,9 +246,9 @@ export default function AdminPage() {
     }
 
     const ok = await confirm({
-      title: 'Recalcular Confiança do Dataset',
-      message: `Deseja recalcular a confiança de ${photoIds.length} foto(s) do banco de dados, uma por vez, com a IA calibrada?`,
-      confirmText: 'Recalcular 1 por vez',
+      title: 'Reavaliar enquadramento',
+      message: `Deseja recalcular a qualidade do enquadramento de ${photoIds.length} foto(s)?`,
+      confirmText: 'Reavaliar',
       variant: 'primary',
     });
     if (!ok) return;
@@ -283,9 +283,9 @@ export default function AdminPage() {
     }
 
     const ok = await confirm({
-      title: 'Regerar ICS de Todo o Dataset (Fila)',
-      message: `Deseja enviar todas as ${totalPhotosCount} foto(s) para a fila de inferência YOLO26m ICS no backend e iniciar o processamento sequencial?`,
-      confirmText: 'Enviar para Fila e Processar',
+      title: 'Regerar ICS do rebanho',
+      message: `Deseja enviar todas as ${totalPhotosCount} foto(s) para avaliação na fila de ICS?`,
+      confirmText: 'Iniciar avaliação',
       variant: 'primary',
     });
     if (!ok) return;
@@ -413,23 +413,15 @@ export default function AdminPage() {
       <AppHeader
         showBack
         backHref="/dashboard"
-        title={
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <span>Central de Gestão</span>
-            <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shrink-0">
-              <ShieldCheck className="w-3 h-3" />
-              ADMIN
-            </span>
-          </div>
-        }
-        subtitle="Gestão global do rebanho, fotos anatômicas e permissões"
+        title="Central de Gestão"
+        subtitle="Rebanho completo, capturas e usuários"
         actions={
           <button
             onClick={handleDownload}
             disabled={downloading || stats.totalPhotos === 0}
-            className="btn-primary py-1.5 px-3 min-h-[38px] text-xs shrink-0 flex items-center gap-1.5 active:scale-95 touch-manipulation font-semibold"
-            title="Exportar fotos e metadados completos em ZIP"
-            aria-label="Exportar dataset ZIP"
+            className="btn-primary !min-h-[36px] !py-1.5 !px-3 text-xs shrink-0"
+            title="Exportar fotos e dados em ZIP"
+            aria-label="Exportar ZIP"
           >
             {downloading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -549,8 +541,8 @@ export default function AdminPage() {
                     <button
                       onClick={handleRegenerateAllIcs}
                       disabled={regeneratingIcs || recalibrating}
-                      className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5"
-                      title="Enviar todas as fotos do dataset para a fila do modelo YOLO26m ICS no servidor"
+                      className="btn-primary !py-2 !px-3 !min-h-[38px] text-xs"
+                      title="Avaliar ou atualizar o ICS de todas as capturas na fila"
                     >
                       {regeneratingIcs ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -560,9 +552,9 @@ export default function AdminPage() {
                       <span className="tabular-nums">
                         {regeneratingIcs
                           ? icsProgress
-                            ? `ICS ${icsProgress.processed}/${icsProgress.total}…`
-                            : 'Gerando ICS…'
-                          : 'Regerar ICS (Fila)'}
+                            ? `Avaliando ${icsProgress.processed}/${icsProgress.total}…`
+                            : 'Avaliando…'
+                          : 'Regerar ICS'}
                       </span>
                     </button>
 
@@ -632,11 +624,11 @@ export default function AdminPage() {
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                          <span className="font-mono-tag text-xs font-bold px-2 py-0.5 rounded-md bg-slate-900 dark:bg-emerald-950 text-white dark:text-emerald-300">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-mono-tag text-[11px] font-semibold px-2 py-0.5 rounded-[7px] bg-theme-surface-2 border border-theme text-theme-primary">
                             {animal.tag}
                           </span>
-                          <span className="text-xs font-extrabold text-theme-primary truncate">
+                          <span className="text-xs sm:text-sm font-bold text-theme-primary truncate">
                             {animal.name || animal.breed}
                           </span>
                           {(() => {
@@ -648,14 +640,14 @@ export default function AdminPage() {
                             );
                             if (calcPhoto) {
                               return (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 tabular-nums">
-                                  ICS {Number(calcPhoto.icsScore).toFixed(2)}
+                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-[7px] bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 tabular-nums">
+                                  ICS {Number(calcPhoto.icsScore).toFixed(2).replace('.', ',')}
                                 </span>
                               );
                             }
                             if (queued) {
                               return (
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-[7px] bg-amber-500/15 text-amber-700 dark:text-amber-300">
                                   ICS na fila
                                 </span>
                               );
@@ -665,7 +657,7 @@ export default function AdminPage() {
                         </div>
 
                         <p className="text-[11px] text-theme-secondary truncate">
-                          {animal.breed} · {animal.sex} · {animal.weight}kg · {animal.age}m
+                          {animal.breed} — {animal.sex}, {animal.weight} kg, {animal.age} meses
                         </p>
 
                         <p className="text-[10px] text-theme-muted truncate mt-0.5">

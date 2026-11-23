@@ -4,7 +4,7 @@
  * PhotoLightbox — Visualizador fullscreen de fotos (`src/components/PhotoLightbox.tsx`).
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ChevronLeft, ChevronRight, Download, Activity, Loader2, Sparkles } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, RefreshCw, Loader2, Sparkles } from 'lucide-react';
 import { Photo, getPhotoUrl } from '@/lib/types';
 import { apiFetch, enqueuePhotoIcs, invalidateApiCache, processNextIcsJob } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
@@ -63,12 +63,12 @@ export default function PhotoLightbox({
   };
 
   const prev = useCallback(() => {
-    setCurrentIndex((i) => (i > 0 ? i - 1 : photos.length - 1));
-  }, [photos.length]);
+    setCurrentIndex((i) => (i > 0 ? i - 1 : localPhotos.length - 1));
+  }, [localPhotos.length]);
 
   const next = useCallback(() => {
-    setCurrentIndex((i) => (i < photos.length - 1 ? i + 1 : 0));
-  }, [photos.length]);
+    setCurrentIndex((i) => (i < localPhotos.length - 1 ? i + 1 : 0));
+  }, [localPhotos.length]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -131,7 +131,7 @@ export default function PhotoLightbox({
       );
       onPhotoRecalibrated?.(currentPhoto.id, updatedScore);
     } catch (err: any) {
-      toast(err?.message || 'Erro ao recalcular enquadramento da foto.', 'error');
+      toast(err?.message || 'Erro ao reavaliar o enquadramento da foto.', 'error');
     } finally {
       setRecalibrating(false);
     }
@@ -170,7 +170,7 @@ export default function PhotoLightbox({
             : p
         )
       );
-      toast(enq.message || `Foto na fila (posição #${enq.position}).`, 'info');
+      toast(enq.message || `Foto adicionada à fila (posição #${enq.position}).`, 'info');
 
       for (let i = 0; i < 60; i += 1) {
         const step = await processNextIcsJob(currentPhoto.animalId);
@@ -193,8 +193,8 @@ export default function PhotoLightbox({
           onPhotoIcsUpdated?.(targetPhotoId);
           toast(
             typeof updatedIcs.score === 'number'
-              ? `ICS calculado: ${updatedIcs.score.toFixed(2)} (${updatedIcs.classification})`
-              : updatedIcs.message || 'Processamento de ICS finalizado.',
+              ? `ICS avaliado: ${updatedIcs.score.toFixed(2)} (${updatedIcs.classification})`
+              : updatedIcs.message || 'Avaliação de ICS concluída.',
             updatedIcs.status === 'CALCULATED' ? 'success' : 'info'
           );
           break;
@@ -202,7 +202,7 @@ export default function PhotoLightbox({
         if (step.remainingQueued <= 0) break;
       }
     } catch (err: any) {
-      toast(err?.message || 'Erro ao solicitar geração de ICS.', 'error');
+      toast(err?.message || 'Erro ao solicitar avaliação de ICS.', 'error');
     } finally {
       setGeneratingIcs(false);
     }
@@ -217,38 +217,39 @@ export default function PhotoLightbox({
       className="fixed inset-0 m-0 p-0 w-full h-[100dvh] max-w-none max-h-none bg-slate-950/95 backdrop-blur-md flex flex-col border-none outline-none animate-fade-in overflow-hidden"
       style={{ padding: 0 }}
     >
-      {/* Top Bar dedicada (sem sobrepor nem cortar a imagem) */}
+      {/* Top Bar */}
       <div
-        className="relative z-20 shrink-0 flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 bg-black/60 border-b border-white/10"
+        className="relative z-20 shrink-0 flex items-center justify-between gap-2 px-3 sm:px-5 py-2.5 bg-black/55 border-b border-white/10"
         style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-          <span className="text-white/90 text-xs font-bold bg-white/10 px-2.5 py-1 rounded-md backdrop-blur-sm">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="text-white/90 text-xs font-semibold tabular-nums bg-white/10 px-2.5 py-1 rounded-[8px]">
             {currentIndex + 1} / {localPhotos.length}
           </span>
+
           {hasScore && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              <Activity className="w-3.5 h-3.5" />
-              Enquadramento: {Math.round(currentPhoto.score as number)}%
+            <span className="inline-flex items-center text-xs font-semibold tabular-nums px-2.5 py-1 rounded-[8px] bg-white/10 text-emerald-300">
+              Enquadramento {Math.round(currentPhoto.score as number)}%
             </span>
           )}
+
           {effectiveIcsStatus === 'CALCULATED' && effectiveIcsScore !== null ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-200 border border-blue-400/30">
-              ICS: {effectiveIcsScore.toFixed(2)}
-              {effectiveIcsClass ? ` · ${effectiveIcsClass}` : ''}
+            <span className="inline-flex items-center text-xs font-semibold tabular-nums px-2.5 py-1 rounded-[8px] bg-emerald-600/90 text-white">
+              ICS {effectiveIcsScore.toFixed(2)}
+              {effectiveIcsClass ? ` — ${effectiveIcsClass}` : ''}
             </span>
           ) : effectiveIcsStatus === 'QUEUED' || effectiveIcsStatus === 'PROCESSING' ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-200 border border-blue-400/30">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-[8px] bg-amber-500/20 text-amber-200 border border-amber-400/30">
               <Loader2 className="w-3 h-3 animate-spin" />
-              {effectiveIcsStatus === 'PROCESSING' ? 'Calculando ICS…' : 'ICS: Na fila'}
+              {effectiveIcsStatus === 'PROCESSING' ? 'Avaliando ICS…' : 'Na fila de ICS'}
             </span>
           ) : effectiveIcsStatus === 'FAILED' || effectiveIcsStatus === 'ERROR' ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-200 border border-rose-400/30">
-              ICS: Não identificado
+            <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-[8px] bg-rose-500/20 text-rose-200 border border-rose-400/30">
+              ICS não identificado
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-white/10 text-white/80 border border-white/20">
-              ICS: Aguardando solicitação
+            <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-[8px] bg-white/10 text-white/75">
+              ICS pendente
             </span>
           )}
         </div>
@@ -258,61 +259,64 @@ export default function PhotoLightbox({
             type="button"
             onClick={handleGenerateCurrentIcs}
             disabled={generatingIcs}
-            aria-label="Gerar ICS"
-            className="bg-blue-600/80 hover:bg-blue-500 text-white px-2.5 py-1.5 rounded-md transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[38px]"
-            title="Solicitar cálculo de ICS desta foto na fila do servidor"
+            aria-label="Avaliar ICS"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-[8px] transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[36px]"
+            title="Avaliar o ICS desta captura"
           >
             {generatingIcs ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-200" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
-              <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+              <Sparkles className="w-3.5 h-3.5" />
             )}
             <span className="hidden xs:inline">
               {generatingIcs
-                ? 'Na fila…'
+                ? 'Avaliando…'
                 : effectiveIcsStatus === 'CALCULATED'
-                  ? 'Regerar ICS'
-                  : 'Gerar ICS'}
+                  ? 'Reavaliar ICS'
+                  : 'Avaliar ICS'}
             </span>
           </button>
+
           <button
             type="button"
             onClick={handleRecalibrateCurrent}
             disabled={recalibrating}
-            aria-label="Recalcular Enquadramento"
-            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-md transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[38px]"
-            title="Recalcular enquadramento desta foto com o modelo neural"
+            aria-label="Reavaliar Enquadramento"
+            className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-[8px] transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 min-h-[36px]"
+            title="Recalcular qualidade do enquadramento"
           >
             {recalibrating ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-300" />
             ) : (
-              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-300" />
             )}
-            <span className="hidden xs:inline">
-              {recalibrating ? 'Calculando…' : 'Recalcular'}
+            <span className="hidden sm:inline">
+              {recalibrating ? 'Calculando…' : 'Enquadramento'}
             </span>
           </button>
+
           <a
             href={url}
             download={`cattle_photo_${currentPhoto.id}.jpg`}
             onClick={(e) => e.stopPropagation()}
             aria-label="Baixar imagem"
-            className="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded-md transition active:scale-95"
+            className="bg-white/10 hover:bg-white/20 text-white w-9 h-9 rounded-[8px] transition active:scale-95 inline-flex items-center justify-center"
             title="Baixar imagem"
           >
-            <Download className="w-4.5 h-4.5" />
+            <Download className="w-4 h-4" />
           </a>
+
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="bg-white/10 hover:bg-white/20 text-white p-1.5 rounded-md transition active:scale-95"
+            className="bg-white/10 hover:bg-white/20 text-white w-9 h-9 rounded-[8px] transition active:scale-95 inline-flex items-center justify-center"
           >
-            <X className="w-4.5 h-4.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Palco central da imagem: ocupa exatamente o espaço livre sem cortar nenhuma borda */}
+      {/* Área central da imagem sem cortes */}
       <div
         ref={stageRef}
         onClick={handleBackdropClick}
@@ -321,9 +325,7 @@ export default function PhotoLightbox({
         {imgStatus === 'loading' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
             <Loader2 className="w-7 h-7 animate-spin text-emerald-400" />
-            <span className="text-xs font-medium text-white/80">
-              Carregando imagem em alta resolução…
-            </span>
+            <span className="text-xs font-medium text-white/80">Carregando imagem…</span>
           </div>
         )}
 
@@ -340,7 +342,7 @@ export default function PhotoLightbox({
               alt={`Foto ${currentIndex + 1}`}
               onLoad={() => setImgStatus('loaded')}
               onError={() => setImgStatus('error')}
-              className={`block w-auto h-auto max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-7rem)] max-h-[calc(100dvh-9.5rem)] object-contain rounded-lg animate-scale-in select-none shadow-2xl transition-opacity duration-200 ${
+              className={`block w-auto h-auto max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-7rem)] max-h-[calc(100dvh-9.5rem)] object-contain rounded-[10px] animate-scale-in select-none shadow-2xl transition-opacity duration-200 ${
                 imgStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
               }`}
               draggable={false}
@@ -355,7 +357,7 @@ export default function PhotoLightbox({
                       : '0 0 100 100'
                   }
                   preserveAspectRatio="none"
-                  className="absolute inset-0 w-full h-full pointer-events-none rounded-lg"
+                  className="absolute inset-0 w-full h-full pointer-events-none rounded-[10px]"
                 >
                   <polygon
                     points={currentPhoto.contourPoints.map((pt) => `${pt.x},${pt.y}`).join(' ')}
@@ -372,52 +374,50 @@ export default function PhotoLightbox({
           </div>
         )}
 
-        {/* Botão anterior */}
-        {photos.length > 1 && (
+        {localPhotos.length > 1 && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               prev();
             }}
             aria-label="Foto anterior"
-            className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-md transition active:scale-95 z-10 backdrop-blur-sm border border-white/15"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 bg-black/55 hover:bg-black/80 text-white w-10 h-10 rounded-[10px] transition active:scale-95 z-10 backdrop-blur-sm border border-white/15 inline-flex items-center justify-center"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
 
-        {/* Botão próximo */}
-        {photos.length > 1 && (
+        {localPhotos.length > 1 && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               next();
             }}
             aria-label="Próxima foto"
-            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-md transition active:scale-95 z-10 backdrop-blur-sm border border-white/15"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 bg-black/55 hover:bg-black/80 text-white w-10 h-10 rounded-[10px] transition active:scale-95 z-10 backdrop-blur-sm border border-white/15 inline-flex items-center justify-center"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Barra inferior para status da fila e dots de navegação sem cobrir a foto */}
-      {(photos.length > 1 ||
+      {/* Rodapé do Lightbox */}
+      {(localPhotos.length > 1 ||
         effectiveIcsStatus === 'QUEUED' ||
         effectiveIcsStatus === 'PROCESSING') && (
         <div
-          className="relative z-20 shrink-0 flex flex-col items-center gap-1.5 px-3 py-2.5 bg-black/50 border-t border-white/10"
+          className="relative z-20 shrink-0 flex flex-col items-center gap-2 px-3 py-2.5 bg-black/55 border-t border-white/10"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           {(effectiveIcsStatus === 'QUEUED' || effectiveIcsStatus === 'PROCESSING') && (
-            <div className="px-3 py-1 rounded-full bg-black/70 border border-blue-400/30 text-[11px] text-blue-200 whitespace-nowrap max-w-[90vw] truncate">
-              Calculando ICS no servidor (modelo YOLO26m ONNX)…
+            <div className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/30 text-[11px] font-medium text-amber-200 whitespace-nowrap max-w-[90vw] truncate">
+              Calculando o Índice de Condição Corporal…
             </div>
           )}
 
-          {photos.length > 1 && (
+          {localPhotos.length > 1 && (
             <div className="flex gap-2 bg-black/40 px-3 py-1.5 rounded-full">
-              {photos.map((_, i) => (
+              {localPhotos.map((_, i) => (
                 <button
                   key={i}
                   onClick={(e) => {
@@ -425,8 +425,8 @@ export default function PhotoLightbox({
                     setCurrentIndex(i);
                   }}
                   aria-label={`Ir para foto ${i + 1}`}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    i === currentIndex ? 'bg-emerald-400 scale-125 w-4' : 'bg-white/40'
+                  className={`h-2 rounded-full transition-all ${
+                    i === currentIndex ? 'bg-emerald-400 w-5' : 'bg-white/40 w-2'
                   }`}
                 />
               ))}

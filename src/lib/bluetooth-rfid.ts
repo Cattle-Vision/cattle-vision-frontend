@@ -188,7 +188,7 @@ class BluetoothRfidService {
       });
 
       this.device = device;
-      this.deviceName = device.name || "Leitor RFID ESP32";
+      this.deviceName = device.name || "Leitor Bluetooth";
 
       // Listener para desconexão acidental
       device.addEventListener("gattserverdisconnected", () => {

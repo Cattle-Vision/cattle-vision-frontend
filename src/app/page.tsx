@@ -1,9 +1,5 @@
 /**
- * Landing Page Principal (`src/app/page.tsx`).
- *
- * Apresentação direta e técnica da ferramenta de campo CattleVision:
- * identificação por brinco/RFID, captura guiada da garupa e histórico
- * zootécnico do rebanho com suporte offline.
+ * Landing Page (`src/app/page.tsx`).
  */
 import Link from "next/link";
 import {
@@ -12,7 +8,7 @@ import {
   ScanLine,
   WifiOff,
   ChevronRight,
-  Database,
+  ClipboardCheck,
   Users,
   Check,
 } from "lucide-react";
@@ -26,17 +22,16 @@ export default function LandingPage() {
     <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary selection:bg-emerald-600 selection:text-white">
       <LandingAuthCheck />
 
-      {/* Header Institucional */}
-      <header className="glass-header sticky top-0 z-30 border-b border-theme bg-theme-surface/92 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-15 flex items-center justify-between gap-3">
+      <header className="glass-header sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <BrandMark className="w-8 h-8 sm:w-9 sm:h-9" />
             <div className="min-w-0">
-              <span className="font-bold text-base sm:text-[17px] tracking-tight text-theme-primary truncate block leading-none">
+              <span className="font-bold text-base sm:text-[17px] tracking-tight text-theme-primary block leading-none">
                 Cattle<span className="text-emerald-600 dark:text-emerald-400">Vision</span>
               </span>
-              <span className="text-[11px] font-medium text-theme-secondary truncate hidden sm:block mt-0.5">
-                Registro de Condição Corporal Bovina
+              <span className="text-[11px] font-medium text-theme-secondary hidden sm:block mt-0.5">
+                Avaliação Corporal Bovina
               </span>
             </div>
           </div>
@@ -46,13 +41,13 @@ export default function LandingPage() {
             <ThemeToggle />
             <Link
               href="/login"
-              className="btn-ghost text-xs sm:text-sm px-3 py-2 min-h-[38px] font-semibold"
+              className="btn-ghost text-xs sm:text-sm px-3"
             >
               Entrar
             </Link>
             <Link
               href="/register"
-              className="btn-primary text-xs sm:text-sm px-3.5 sm:px-4 py-2 min-h-[38px] font-semibold"
+              className="btn-primary !min-h-[38px] text-xs sm:text-sm px-3.5 sm:px-4"
             >
               <span>Criar conta</span>
               <ArrowRight className="w-3.5 h-3.5 hidden xs:inline" />
@@ -61,130 +56,107 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Conteúdo Principal */}
       <main className="flex-1">
-        {/* Hero em 2 colunas no desktop para leitura rápida */}
-        <section className="pt-10 pb-12 sm:pt-16 sm:pb-16 px-4 sm:px-6 border-b border-theme">
+        <section className="pt-10 pb-14 sm:pt-16 sm:pb-20 px-4 sm:px-6 border-b border-theme">
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             <div className="lg:col-span-7">
-              <p className="font-mono-tag text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-3">
-                Manejo de Curral • PWA Offline
-              </p>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full mb-4">
+                Gestão de campo e avaliação de ICS
+              </span>
 
               <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-bold tracking-tight text-theme-primary leading-[1.12] mb-4">
-                Registro e avaliação de condição corporal direto no tronco.
+                Avaliação corporal e histórico completo do rebanho direto no curral.
               </h1>
 
               <p className="text-sm sm:text-base text-theme-secondary leading-relaxed max-w-xl mb-7">
-                Localize o animal por brinco, apelido ou leitor RFID Bluetooth, faça a captura
-                padronizada da região posterior com validação instantânea de enquadramento e
-                mantenha o histórico do rebanho acessível em campo.
+                Identifique cada animal pelo apelido, brinco ou leitor Bluetooth, registre fotos
+                guiadas e acompanhe o Índice de Condição Corporal (ICS) junto ao histórico
+                sanitário e de movimentações.
               </p>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-md">
                 <Link
                   href="/register"
-                  className="btn-primary py-3 px-5 text-sm sm:text-base font-semibold min-h-[46px] justify-center"
+                  className="btn-primary py-3 px-5 text-sm sm:text-base justify-center"
                 >
-                  <span>Acessar o Sistema</span>
+                  <span>Começar agora</span>
                   <ChevronRight className="w-4 h-4" />
                 </Link>
                 <Link
                   href="/login"
-                  className="btn-secondary py-3 px-5 text-sm sm:text-base font-semibold min-h-[46px] justify-center"
+                  className="btn-secondary py-3 px-5 text-sm sm:text-base justify-center"
                 >
-                  Já tenho cadastro
+                  Já tenho conta
                 </Link>
               </div>
 
               <div className="mt-3 sm:hidden">
-                <PwaInstallPrompt variant="button" className="w-full justify-center py-2.5 text-xs font-semibold" />
+                <PwaInstallPrompt variant="button" className="w-full justify-center" />
               </div>
 
-              <div className="mt-7 pt-5 border-t border-theme flex flex-wrap gap-x-6 gap-y-2 text-xs text-theme-secondary">
+              <div className="mt-8 pt-6 border-t border-theme flex flex-wrap gap-x-6 gap-y-2.5 text-xs font-medium text-theme-secondary">
                 <span className="inline-flex items-center gap-1.5">
                   <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  Escala zootécnica 1 a 5 (ICS / ECC)
+                  Índice de Condição Corporal (1,0 a 5,0)
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  Fila offline no dispositivo
+                  Funciona mesmo sem internet
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  Leitor RFID ESP32 via BLE
+                  Compatível com leitor Bluetooth
                 </span>
               </div>
             </div>
 
-            {/* Painel de fluxo operacional — substitui blocos decorativos genéricos */}
             <div className="lg:col-span-5">
-              <div className="card p-4 sm:p-5 bg-theme-surface border border-theme">
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-theme">
-                  <span className="text-xs font-semibold text-theme-primary">
-                    Fluxo de captura em campo
-                  </span>
-                  <span className="font-mono-tag text-[11px] text-theme-secondary">
-                    3 etapas
+              <div className="card p-5 space-y-3">
+                <div className="pb-2.5 border-b border-theme">
+                  <span className="text-xs font-bold text-theme-primary">
+                    Como funciona na prática
                   </span>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-theme-surface-2 border border-theme">
-                    <div className="w-8 h-8 rounded-md bg-emerald-600/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <ScanLine className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-theme-primary">
-                          1. Identificação do bovino
-                        </p>
-                        <span className="font-mono-tag text-[11px] text-theme-secondary">
-                          Brinco / RFID
-                        </span>
-                      </div>
-                      <p className="text-xs text-theme-secondary mt-0.5">
-                        Busca rápida no lote ou leitura automática via bastão Bluetooth.
-                      </p>
-                    </div>
+                <div className="flex items-start gap-3 p-3.5 card-subtle">
+                  <div className="w-9 h-9 rounded-[10px] bg-emerald-600/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <ScanLine className="w-4 h-4" />
                   </div>
-
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-theme-surface-2 border border-theme">
-                    <div className="w-8 h-8 rounded-md bg-emerald-600/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <Camera className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-theme-primary">
-                          2. Enquadramento da garupa
-                        </p>
-                        <span className="font-mono-tag text-[11px] text-emerald-700 dark:text-emerald-400 tabular-nums">
-                          Score óptico
-                        </span>
-                      </div>
-                      <p className="text-xs text-theme-secondary mt-0.5">
-                        Mira visual a 1,5 m valida nitidez, contraste e ângulo antes de salvar.
-                      </p>
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-theme-primary">
+                      1. Identifique o animal
+                    </p>
+                    <p className="text-xs text-theme-secondary mt-0.5 leading-relaxed">
+                      Busque pelo apelido, número do brinco ou aproxime o leitor eletrônico Bluetooth.
+                    </p>
                   </div>
+                </div>
 
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-theme-surface-2 border border-theme">
-                    <div className="w-8 h-8 rounded-md bg-emerald-600/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <Database className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-theme-primary">
-                          3. Histórico na ficha do animal
-                        </p>
-                        <span className="font-mono-tag text-[11px] text-theme-secondary">
-                          Sync auto
-                        </span>
-                      </div>
-                      <p className="text-xs text-theme-secondary mt-0.5">
-                        Fotos e registros ficam vinculados ao animal e sincronizam ao reconectar.
-                      </p>
-                    </div>
+                <div className="flex items-start gap-3 p-3.5 card-subtle">
+                  <div className="w-9 h-9 rounded-[10px] bg-emerald-600/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Camera className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-theme-primary">
+                      2. Capture a foto guiada
+                    </p>
+                    <p className="text-xs text-theme-secondary mt-0.5 leading-relaxed">
+                      A câmera auxilia no enquadramento e distância antes mesmo de salvar.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3.5 card-subtle">
+                  <div className="w-9 h-9 rounded-[10px] bg-emerald-600/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <ClipboardCheck className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-theme-primary">
+                      3. Calcule e acompanhe o ICS
+                    </p>
+                    <p className="text-xs text-theme-secondary mt-0.5 leading-relaxed">
+                      Solicite a nota corporal (1,0 a 5,0) e mantenha vacinas, localização e notas na ficha.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -192,55 +164,54 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Pilares operacionais */}
         <section className="py-12 sm:py-16 px-4 sm:px-6 bg-theme-surface">
           <div className="max-w-6xl mx-auto">
             <div className="max-w-xl mb-8">
               <h2 className="text-xl sm:text-2xl font-bold text-theme-primary tracking-tight">
-                Feito para a rotina do manejo
+                Feito para a rotina do campo e do escritório
               </h2>
               <p className="text-sm text-theme-secondary mt-1.5">
-                Interface direta para operar com uma mão no curral e revisar lotes no escritório.
+                Simples de operar no curral com uma mão e completo para análise do lote.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="p-5 rounded-xl bg-theme-bg border border-theme">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
-                  <WifiOff className="w-4.5 h-4.5" />
+              <div className="card-subtle p-5">
+                <div className="w-9 h-9 rounded-[10px] bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
+                  <WifiOff className="w-4 h-4" />
                 </div>
-                <h3 className="font-semibold text-sm text-theme-primary mb-1.5">
-                  Funciona sem sinal de internet
+                <h3 className="font-bold text-sm text-theme-primary mb-1.5">
+                  Funciona sem sinal
                 </h3>
                 <p className="text-xs sm:text-sm text-theme-secondary leading-relaxed">
-                  Capturas feitas no pasto ou tronco sem cobertura ficam guardadas no aparelho e são
-                  enviadas automaticamente quando a conexão retorna.
+                  Cadastros, observações e fotos ficam salvos no aparelho e sincronizam
+                  automaticamente assim que a internet voltar.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-theme-bg border border-theme">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
-                  <ScanLine className="w-4.5 h-4.5" />
+              <div className="card-subtle p-5">
+                <div className="w-9 h-9 rounded-[10px] bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
+                  <ScanLine className="w-4 h-4" />
                 </div>
-                <h3 className="font-semibold text-sm text-theme-primary mb-1.5">
-                  Brinco e RFID integrados
+                <h3 className="font-bold text-sm text-theme-primary mb-1.5">
+                  Brinco e leitura Bluetooth
                 </h3>
                 <p className="text-xs sm:text-sm text-theme-secondary leading-relaxed">
-                  Abra a ficha pelo número do brinco, nome do animal ou conectando um bastão leitor
-                  ESP32 via Bluetooth direto no navegador.
+                  Encontre qualquer animal instantaneamente digitando o apelido ou conectando um
+                  leitor Bluetooth compatível.
                 </p>
               </div>
 
-              <div className="p-5 rounded-xl bg-theme-bg border border-theme">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
-                  <Users className="w-4.5 h-4.5" />
+              <div className="card-subtle p-5">
+                <div className="w-9 h-9 rounded-[10px] bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
+                  <Users className="w-4 h-4" />
                 </div>
-                <h3 className="font-semibold text-sm text-theme-primary mb-1.5">
-                  Guarda compartilhada por animal
+                <h3 className="font-bold text-sm text-theme-primary mb-1.5">
+                  Trabalho em equipe
                 </h3>
                 <p className="text-xs sm:text-sm text-theme-secondary leading-relaxed">
-                  Compartilhe o acesso de um animal específico com técnicos, veterinários ou outros
-                  operadores da equipe sem misturar todo o rebanho.
+                  Compartilhe fichas específicas com veterinários, técnicos ou peões mantendo o
+                  controle de quem pode gerenciar o animal.
                 </p>
               </div>
             </div>
@@ -248,14 +219,11 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* Rodapé enxuto */}
       <footer className="border-t border-theme py-6 px-4 sm:px-6 bg-theme-bg text-xs text-theme-secondary">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-theme-primary">CattleVision</span>
-            <span>•</span>
-            <span>Avaliação de Condição Corporal Bovina</span>
-          </div>
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span className="font-semibold text-theme-primary">
+            CattleVision — Avaliação Corporal Bovina
+          </span>
           <p>© {new Date().getFullYear()} CattleVision</p>
         </div>
       </footer>

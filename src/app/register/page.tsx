@@ -35,8 +35,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-[100dvh] flex bg-theme-bg text-theme-primary">
-      {/* Painel lateral */}
-      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col justify-between p-10 bg-[#10161D] text-white border-r border-slate-800">
+      <div className="hidden lg:flex w-[400px] xl:w-[440px] flex-col justify-between p-10 bg-[#0F1714] text-white border-r border-emerald-950/60">
         <div>
           <Link href="/" className="inline-flex items-center gap-2.5">
             <BrandMark className="w-9 h-9" />
@@ -46,45 +45,44 @@ export default function RegisterPage() {
           </Link>
 
           <div className="mt-14">
-            <p className="font-mono-tag text-[11px] uppercase tracking-wider text-emerald-400 mb-3">
-              Cadastro de Operador
-            </p>
+            <span className="text-xs font-semibold text-emerald-400 block mb-3">
+              Novo operador
+            </span>
             <h1 className="text-2xl xl:text-3xl font-bold leading-tight tracking-tight">
-              Organize o rebanho e registre capturas padronizadas em campo.
+              Organize seu rebanho e acompanhe cada animal.
             </h1>
             <p className="mt-4 text-sm text-slate-300 leading-relaxed">
-              Crie sua conta para cadastrar animais, capturar fotos da região posterior com mira
-              guiada e compartilhar fichas com sua equipe.
+              Crie sua conta para cadastrar animais, fazer capturas guiadas em campo e compartilhar
+              fichas com a equipe da fazenda.
             </p>
           </div>
         </div>
 
-        <div className="space-y-2.5 pt-6 border-t border-slate-800 text-xs text-slate-300">
+        <div className="space-y-2.5 pt-6 border-t border-white/10 text-xs text-slate-300">
           <div className="flex items-center gap-2">
             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Cadastro por brinco, raça, idade e tag RFID</span>
+            <span>Ficha completa com brinco, raça, idade e localização</span>
           </div>
           <div className="flex items-center gap-2">
             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Galeria histórica com qualidade de enquadramento</span>
+            <span>Avaliação corporal (ICS) por imagem</span>
           </div>
           <div className="flex items-center gap-2">
             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>Guarda compartilhada por animal</span>
+            <span>Controle de vacinas, saúde e movimentações</span>
           </div>
         </div>
       </div>
 
-      {/* Formulário */}
       <div className="flex-1 flex flex-col justify-center items-center p-5 sm:p-10">
         <div className="w-full max-w-md">
           <div className="flex items-center justify-between mb-6">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-theme-secondary hover:text-theme-primary"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-theme-secondary hover:text-theme-primary"
             >
               <ArrowLeft className="w-4 h-4" />
-              Início
+              <span>Início</span>
             </Link>
             <div className="flex items-center gap-2.5">
               <div className="lg:hidden flex items-center gap-2">
@@ -97,22 +95,22 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="card p-5 sm:p-7">
+          <div className="card p-6 sm:p-7">
             <h2 className="text-xl sm:text-2xl font-bold text-theme-primary tracking-tight mb-1">
-              Criar nova conta
+              Criar conta
             </h2>
             <p className="text-xs sm:text-sm text-theme-secondary mb-5">
-              Preencha seus dados para gerenciar seu rebanho e realizar avaliações zootécnicas.
+              Preencha seus dados para começar a registrar o rebanho.
             </p>
 
             {error && (
               <div className="error-banner mb-4 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleRegister} className="flex flex-col gap-5">
+            <form onSubmit={handleRegister} className="flex flex-col gap-4">
               <div>
                 <label className="field-label" htmlFor="reg-name">
                   Nome completo
@@ -171,6 +169,7 @@ export default function RegisterPage() {
                     onClick={() => setShowPassword((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-theme-muted hover:text-theme-primary p-1"
                     tabIndex={-1}
+                    aria-label="Mostrar ou ocultar senha"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -180,21 +179,21 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full py-3.5 text-base mt-1"
+                className="btn-primary w-full py-3 text-sm sm:text-base mt-1"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {loading ? "Criando conta…" : "Concluir Cadastro"}
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>{loading ? "Criando conta…" : "Criar conta"}</span>
               </button>
             </form>
 
             <div className="mt-6 pt-5 border-t border-theme text-center">
               <p className="text-sm text-theme-secondary">
-                Já possui uma conta?{" "}
+                Já tem conta?{" "}
                 <Link
                   href="/login"
-                  className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                  className="font-semibold text-emerald-700 dark:text-emerald-400 hover:underline"
                 >
-                  Fazer login
+                  Entrar agora
                 </Link>
               </p>
             </div>

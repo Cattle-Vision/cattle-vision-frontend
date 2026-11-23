@@ -1,22 +1,19 @@
 "use client";
 
-/**
- * Barra de Navegação Inferior Mobile/Tablet (`src/components/MobileNav.tsx`).
- * Otimizada para ergonomia do operador com touch targets generosos (mínimo 48px).
- */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, ScanLine, PlusCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
+/**
+ * Barra de Navegação Inferior Mobile/Tablet (`src/components/MobileNav.tsx`).
+ */
 export function MobileNav({ isAdmin: propIsAdmin }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const { isAdmin: authIsAdmin, isAuthenticated } = useAuth();
   const isAdmin = propIsAdmin ?? authIsAdmin;
 
   if (!isAuthenticated) return null;
-
-  // Não exibe a barra na tela da câmera (para liberar 100% da viewport para o viewfinder)
   if (pathname.startsWith("/camera")) return null;
 
   const items = [
@@ -42,7 +39,7 @@ export function MobileNav({ isAdmin: propIsAdmin }: { isAdmin?: boolean }) {
       ? [
           {
             href: "/admin",
-            label: "Admin",
+            label: "Gestão",
             icon: ShieldCheck,
             active: pathname.startsWith("/admin"),
           },
@@ -63,7 +60,7 @@ export function MobileNav({ isAdmin: propIsAdmin }: { isAdmin?: boolean }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex-1 min-h-[48px] flex flex-col items-center justify-center py-1 px-1 rounded-lg transition active:scale-95 touch-manipulation select-none ${
+              className={`relative flex-1 min-h-[48px] flex flex-col items-center justify-center py-1 px-1 rounded-[10px] transition active:scale-95 touch-manipulation select-none ${
                 item.active
                   ? "text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-500/10"
                   : "text-theme-secondary hover:text-theme-primary font-medium"

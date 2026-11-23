@@ -25,11 +25,7 @@ export interface AppHeaderProps {
 }
 
 /**
- * Cabeçalho padronizado do sistema.
- * - Mantém o símbolo canônico `BrandMark` (sincronizado ao ícone PWA e favicon).
- * - Em telas menores (`< md`), omite os links principais já presentes na `MobileNav`
- *   inferior para evitar redundância visual.
- * - Centraliza o acesso ao perfil do operador, senha, tema e saída em `/profile`.
+ * Cabeçalho global enxuto e padronizado (`src/components/AppHeader.tsx`).
  */
 export function AppHeader({
   title,
@@ -63,25 +59,56 @@ export function AppHeader({
 
   const isProfileActive = pathname.startsWith("/profile");
 
+  const navItems = [
+    {
+      href: "/dashboard",
+      label: "Rebanho",
+      icon: LayoutGrid,
+      active: pathname === "/dashboard",
+    },
+    {
+      href: "/identify",
+      label: "Identificar",
+      icon: ScanLine,
+      active: pathname.startsWith("/identify"),
+    },
+    {
+      href: "/animal/new",
+      label: "Cadastrar",
+      icon: PlusCircle,
+      active: pathname === "/animal/new",
+    },
+    ...(isAdmin
+      ? [
+          {
+            href: "/admin",
+            label: "Gestão",
+            icon: ShieldCheck,
+            active: pathname.startsWith("/admin"),
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <header className="glass-header sticky top-0 z-30 border-b border-theme bg-theme-surface/92 backdrop-blur-md">
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-15 flex items-center justify-between gap-3">
-        {/* Lado Esquerdo: Identidade canônica ou Botão Voltar */}
+    <header className="glass-header sticky top-0 z-30">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
+        {/* Esquerda: Voltar ou Marca */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           {showBack ? (
             <button
               type="button"
               onClick={handleBack}
               aria-label="Voltar"
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-theme-primary bg-theme-surface-2 hover:bg-theme-surface border border-theme active:scale-95 transition touch-manipulation shrink-0"
+              className="w-9 h-9 rounded-[10px] flex items-center justify-center text-theme-primary bg-theme-surface-2 hover:bg-theme-surface border border-theme active:scale-95 transition shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
           ) : (
             <Link
               href="/dashboard"
-              className="inline-flex items-center shrink-0 rounded-lg active:scale-95 transition"
-              aria-label="Ir para o painel principal"
+              className="inline-flex items-center shrink-0 rounded-[10px] active:scale-95 transition"
+              aria-label="Ir para o painel do rebanho"
             >
               <BrandMark className="w-9 h-9" />
             </Link>
@@ -89,7 +116,7 @@ export function AppHeader({
 
           <div className="min-w-0">
             {title ? (
-              <div className="text-sm sm:text-[15px] font-bold text-theme-primary truncate tracking-tight">
+              <div className="text-sm sm:text-[15px] font-bold text-theme-primary truncate tracking-tight leading-tight">
                 {title}
               </div>
             ) : (
@@ -108,61 +135,29 @@ export function AppHeader({
           </div>
         </div>
 
-        {/* Centro (Desktop apenas — no mobile a navegação principal fica na MobileNav inferior) */}
+        {/* Centro (Desktop apenas) */}
         <nav aria-label="Navegação principal" className="hidden md:flex items-center gap-1">
-          <Link
-            href="/dashboard"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              pathname === "/dashboard"
-                ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
-                : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            <span>Rebanho</span>
-          </Link>
-
-          <Link
-            href="/identify"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              pathname.startsWith("/identify")
-                ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
-                : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
-            }`}
-          >
-            <ScanLine className="w-4 h-4" />
-            <span>Identificar</span>
-          </Link>
-
-          <Link
-            href="/animal/new"
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-              pathname === "/animal/new"
-                ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
-                : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
-            }`}
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Cadastrar</span>
-          </Link>
-
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                pathname.startsWith("/admin")
-                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25"
-                  : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4 text-amber-500" />
-              <span>Admin</span>
-            </Link>
-          )}
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`px-3 py-2 rounded-[10px] text-xs font-semibold transition inline-flex items-center gap-1.5 ${
+                  item.active
+                    ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
+                    : "text-theme-secondary hover:text-theme-primary hover:bg-theme-surface-2"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Lado Direito: Ações contextuais da página, tema (desktop) e Perfil do Operador */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Direita: Ações da tela, Tema e Perfil */}
+        <div className="flex items-center gap-2 shrink-0">
           {actions}
 
           <div className="hidden sm:block">
@@ -171,15 +166,15 @@ export function AppHeader({
 
           <Link
             href="/profile"
-            aria-label={`Abrir página de perfil (${user?.name || "Operador"})`}
+            aria-label={`Abrir perfil (${user?.name || "Operador"})`}
             title={`Perfil e configurações (${user?.name || "Operador"})`}
-            className={`inline-flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-lg border text-xs font-semibold transition active:scale-95 touch-manipulation shrink-0 ${
+            className={`inline-flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-[10px] border text-xs font-semibold transition active:scale-95 shrink-0 ${
               isProfileActive
                 ? "bg-emerald-500/12 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"
                 : "bg-theme-surface-2 border-theme text-theme-primary hover:border-emerald-500/40"
             }`}
           >
-            <span className="w-6 h-6 rounded-md bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+            <span className="w-6 h-6 rounded-[7px] bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
               {initials || <UserIcon className="w-3.5 h-3.5" />}
             </span>
             <span className="hidden sm:inline max-w-[110px] truncate">{firstName}</span>

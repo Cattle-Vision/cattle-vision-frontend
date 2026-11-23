@@ -21,7 +21,6 @@ export function PwaInstallPrompt({
   const [showIosGuide, setShowIosGuide] = useState(false);
 
   useEffect(() => {
-    // Detecta se já está rodando como app instalado
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true;
@@ -31,10 +30,8 @@ export function PwaInstallPrompt({
       return;
     }
 
-    // Detecta iOS / iPadOS
     const ua = window.navigator.userAgent.toLowerCase();
-    const isAppleDevice = /iphone|ipad|ipod/.test(ua);
-    setIsIos(isAppleDevice);
+    setIsIos(/iphone|ipad|ipod/.test(ua));
 
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
@@ -52,8 +49,6 @@ export function PwaInstallPrompt({
     };
   }, []);
 
-  // Só exibe o botão de instalação quando há prompt nativo disponível ou em iOS Safari,
-  // evitando poluir navegadores desktop não suportados com um modal de instruções iOS.
   if (isInstalled || (!deferredPrompt && !isIos)) return null;
 
   const handleInstallClick = async () => {
@@ -65,7 +60,7 @@ export function PwaInstallPrompt({
           setIsInstalled(true);
         }
       } catch {
-        // Fallback silencioso caso o navegador aborte o prompt
+        // Ignora cancelamento pelo navegador
       }
       setDeferredPrompt(null);
     } else if (isIos) {
@@ -79,9 +74,9 @@ export function PwaInstallPrompt({
         <button
           type="button"
           onClick={handleInstallClick}
-          title="Instalar Aplicativo (PWA)"
-          aria-label="Instalar Aplicativo (PWA)"
-          className={`p-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition min-w-[40px] min-h-[40px] inline-flex items-center justify-center touch-manipulation active:scale-95 ${className}`}
+          title="Instalar aplicativo"
+          aria-label="Instalar aplicativo"
+          className={`w-9 h-9 rounded-[10px] border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition inline-flex items-center justify-center touch-manipulation active:scale-95 ${className}`}
         >
           <Smartphone className="w-4 h-4" />
         </button>
@@ -91,44 +86,69 @@ export function PwaInstallPrompt({
         <button
           type="button"
           onClick={handleInstallClick}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] text-xs font-bold rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition active:scale-95 touch-manipulation shrink-0 ${className}`}
+          className={`inline-flex items-center justify-center gap-1.5 px-3 h-9 text-xs font-semibold rounded-[10px] border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition active:scale-95 touch-manipulation shrink-0 ${className}`}
         >
           <Download className="w-3.5 h-3.5" />
           <span>Instalar App</span>
         </button>
       )}
 
-      {/* Modal Guiado para iOS e navegadores sem prompt nativo */}
+      {variant === "banner" && (
+        <div className={`flex items-center justify-between gap-3 ${className}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-[10px] bg-emerald-500/12 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Smartphone className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-semibold text-theme-primary">
+                Aplicativo no aparelho
+              </p>
+              <p className="text-[11px] text-theme-secondary">
+                Acesso direto da tela inicial e suporte a trabalho sem sinal.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="btn-secondary !py-1.5 !px-3 !min-h-[36px] text-xs shrink-0"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Instalar</span>
+          </button>
+        </div>
+      )}
+
       {showIosGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
-          <div className="card p-5 max-w-sm w-full bg-theme-surface border border-theme shadow-xl rounded-2xl relative">
+          <div className="card p-5 max-w-sm w-full relative">
             <button
               onClick={() => setShowIosGuide(false)}
-              className="absolute top-3 right-3 p-1.5 text-theme-muted hover:text-theme-primary rounded-lg"
+              className="absolute top-3.5 right-3.5 p-1.5 text-theme-muted hover:text-theme-primary rounded-lg"
               aria-label="Fechar"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
+            <div className="w-10 h-10 rounded-[10px] bg-emerald-500/12 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-3">
               <Smartphone className="w-5 h-5" />
             </div>
 
             <h3 className="text-base font-bold text-theme-primary mb-1">
-              Instalar o CattleVision no seu Celular
+              Instalar CattleVision no iPhone
             </h3>
             <p className="text-xs text-theme-secondary mb-4 leading-relaxed">
-              Tenha acesso rápido direto do curral, funcionando em tela cheia mesmo sem sinal de internet:
+              Adicione à tela inicial para abrir em tela cheia diretamente no curral:
             </p>
 
-            <ol className="text-xs text-theme-primary space-y-2.5 mb-5 bg-theme-surface-2 p-3.5 rounded-xl border border-theme">
+            <ol className="text-xs text-theme-primary space-y-2.5 mb-5 card-subtle p-3.5">
               <li className="flex items-start gap-2.5">
                 <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
                   1
                 </span>
                 <span>
-                  Toque no botão <strong>Compartilhar</strong>{" "}
-                  <Share className="w-3.5 h-3.5 inline text-emerald-500 mx-0.5" /> na barra do navegador Safari ou Chrome.
+                  Toque em <strong>Compartilhar</strong>{" "}
+                  <Share className="w-3.5 h-3.5 inline text-emerald-600 dark:text-emerald-400 mx-0.5" /> na barra do navegador.
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -136,17 +156,17 @@ export function PwaInstallPrompt({
                   2
                 </span>
                 <span>
-                  Role para baixo e selecione <strong>&quot;Adicionar à Tela de Início&quot;</strong>.
+                  Selecione <strong>Adicionar à Tela de Início</strong>.
                 </span>
               </li>
             </ol>
 
             <button
               onClick={() => setShowIosGuide(false)}
-              className="btn-primary w-full py-2.5 text-xs font-bold"
+              className="btn-primary w-full py-2.5 text-xs"
             >
               <Check className="w-4 h-4" />
-              Entendi
+              <span>Entendi</span>
             </button>
           </div>
         </div>

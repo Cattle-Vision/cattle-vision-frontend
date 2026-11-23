@@ -106,7 +106,7 @@ export default function AnimalHealthTabs({
   onReloadAnimal,
   galleryContent,
 }: AnimalHealthTabsProps) {
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
 
   // Contadores de registros para os badges das abas
   const photoCount = animal.photos?.length ?? 0;
@@ -289,7 +289,13 @@ export default function AnimalHealthTabs({
   };
 
   const handleDeleteVaccine = async (vaccineId: string) => {
-    if (!window.confirm("Remover este registro de vacina?")) return;
+    const ok = await confirm({
+      title: "Remover registro de vacina",
+      message: "Deseja realmente excluir este registro de vacinação?",
+      confirmText: "Remover",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await deleteVaccineRecord(animal.id, vaccineId);
       toast("Registro de vacina removido.", "success");
@@ -368,7 +374,13 @@ export default function AnimalHealthTabs({
   };
 
   const handleDeleteDisease = async (diseaseId: string) => {
-    if (!window.confirm("Remover este registro clínico?")) return;
+    const ok = await confirm({
+      title: "Remover registro clínico",
+      message: "Deseja realmente excluir esta ocorrência clínica?",
+      confirmText: "Remover",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await deleteDiseaseRecord(animal.id, diseaseId);
       toast("Registro clínico removido.", "success");
@@ -434,7 +446,13 @@ export default function AnimalHealthTabs({
   };
 
   const handleDeleteObservation = async (obsId: string) => {
-    if (!window.confirm("Excluir esta observação?")) return;
+    const ok = await confirm({
+      title: "Excluir observação",
+      message: "Deseja realmente remover esta observação da ficha?",
+      confirmText: "Excluir",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await deleteObservationRecord(animal.id, obsId);
       toast("Observação removida.", "success");

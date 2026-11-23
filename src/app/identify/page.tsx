@@ -1,13 +1,7 @@
 "use client";
 
 /**
- * Página de Identificação de Animais (`src/app/identify/page.tsx`).
- *
- * Funcionalidades:
- * - Leitor RFID ESP32 via Web Bluetooth integrado.
- * - Busca instantânea no rebanho local (por apelido, raça ou tag) enquanto digita,
- *   combinada com consulta global RFID no servidor para ativar guarda compartilhada.
- * - Utiliza `/api/animals?summary=1` com cache SWR para abertura imediata.
+ * Página de Identificação Rápida de Animais (`src/app/identify/page.tsx`).
  */
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
@@ -105,15 +99,15 @@ export default function IdentifyPage() {
         toast(
           res.isOwner
             ? "Animal identificado com sucesso."
-            : "Animal identificado com guarda compartilhada ativada.",
+            : "Animal localizado e adicionado ao seu acesso compartilhado.",
           "success"
         );
       } else {
         bluetoothRfid.playAudioFeedback("alert");
-        toast("Tag RFID não cadastrada. Você pode registrar este animal agora.", "info");
+        toast("Brinco não cadastrado. Você pode criar a ficha agora.", "info");
       }
     } catch (err: any) {
-      setError(err?.message || "Falha ao consultar a tag RFID no servidor.");
+      setError(err?.message || "Não foi possível consultar este código.");
       bluetoothRfid.playAudioFeedback("alert");
     } finally {
       setLoading(false);
@@ -124,7 +118,7 @@ export default function IdentifyPage() {
     e.preventDefault();
     const normalized = normalizeTag(queryOrTag);
     if (!normalized) {
-      setError("Digite o código do brinco ou tag RFID para consultar no servidor.");
+      setError("Digite o número do brinco ou código eletrônico.");
       return;
     }
     await handleProcessRfid(normalized);
@@ -134,13 +128,13 @@ export default function IdentifyPage() {
     setError("");
     const ok = await bluetoothRfid.connect();
     if (ok) {
-      toast("Leitor RFID ESP32 conectado.", "success");
+      toast("Leitor Bluetooth conectado.", "success");
     }
   };
 
   const handleDisconnectBle = () => {
     bluetoothRfid.disconnect();
-    toast("Leitor RFID desconectado.", "info");
+    toast("Leitor desconectado.", "info");
   };
 
   const handleSimulateTag = () => {
@@ -149,7 +143,7 @@ export default function IdentifyPage() {
     bluetoothRfid.emitManualTag(clean, "simulation");
   };
 
-  const generateRandomEpc = () => {
+  const generateSampleTag = () => {
     let hex = "E280";
     const chars = "0123456789ABCDEF";
     for (let i = 0; i < 20; i++) {
@@ -160,7 +154,6 @@ export default function IdentifyPage() {
 
   const isBleSupported = bluetoothRfid.isSupported();
 
-  // Filtra instantaneamente o rebanho em memória pelo texto digitado (apelido, raça ou tag)
   const matchingAnimals = useMemo(() => {
     const q = queryOrTag.trim().toUpperCase();
     if (!q) return allAnimals.slice(0, 6);
@@ -175,85 +168,71 @@ export default function IdentifyPage() {
   }, [allAnimals, queryOrTag]);
 
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary pb-24 sm:pb-8">
+    <div className="min-h-[100dvh] flex flex-col bg-theme-bg text-theme-primary pb-24 sm:pb-10">
       <AppHeader
         showBack
         backHref="/dashboard"
-        title="Identificar Animal"
-        subtitle="Leitor RFID Bluetooth ou busca por brinco e apelido"
+        title="Identificar animal"
+        subtitle="Leitor Bluetooth ou busca rápida"
       />
 
       <main className="flex-1 p-3 sm:p-6">
         <div className="max-w-xl mx-auto flex flex-col gap-4">
-          {/* Card Principal: Leitor RFID ESP32 via Bluetooth (prioridade no manejo em curral) */}
-          <div className="card p-4 sm:p-5 border-emerald-500/35 bg-gradient-to-br from-emerald-500/[0.06] to-transparent">
-            <div className="flex items-center justify-between gap-3 mb-3">
+          {/* Leitor Bluetooth */}
+          <div className="card p-4 sm:p-5 space-y-3.5">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  className={`w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 ${
                     bleStatus === "connected"
                       ? "bg-emerald-600 text-white"
                       : bleStatus === "connecting"
-                      ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
-                      : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 animate-pulse"
+                        : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
                   }`}
                 >
                   <Bluetooth className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm sm:text-base font-bold text-theme-primary truncate">
-                      Leitor RFID Bluetooth (ESP32)
-                    </h2>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 shrink-0">
-                      Principal
-                    </span>
-                  </div>
+                  <h2 className="text-sm sm:text-base font-bold text-theme-primary truncate">
+                    Leitor de brinco Bluetooth
+                  </h2>
                   <p className="text-xs text-theme-secondary truncate">
                     {bleStatus === "connected"
-                      ? `Conectado: ${bleDeviceName || "CattleVision-RFID"}`
+                      ? `Conectado a ${bleDeviceName || "leitor"}`
                       : bleStatus === "connecting"
-                      ? "Pareando com o dispositivo…"
-                      : "Pareie o bastão leitor para identificar instantaneamente no curral"}
+                        ? "Pareando com o aparelho…"
+                        : "Conecte o bastão leitor para abrir fichas automaticamente"}
                   </p>
                 </div>
               </div>
 
               <span
-                className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border flex items-center gap-1.5 shrink-0 ${
+                className={`px-2.5 py-1 rounded-[8px] text-[11px] font-semibold border shrink-0 ${
                   bleStatus === "connected"
                     ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
                     : bleStatus === "connecting"
-                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
-                    : "bg-theme-surface-2 text-theme-muted border-theme"
+                      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+                      : "bg-theme-surface-2 text-theme-muted border-theme"
                 }`}
               >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    bleStatus === "connected"
-                      ? "bg-emerald-500"
-                      : bleStatus === "connecting"
-                      ? "bg-amber-500 animate-pulse"
-                      : "bg-theme-muted"
-                  }`}
-                />
                 {bleStatus === "connected"
                   ? "Conectado"
                   : bleStatus === "connecting"
-                  ? "Conectando"
-                  : "Desconectado"}
+                    ? "Pareando"
+                    : "Desconectado"}
               </span>
             </div>
 
             {bleStatus === "connected" ? (
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-3 text-xs">
+              <div className="p-3 rounded-[10px] bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between gap-3 text-xs">
                 <span className="text-emerald-800 dark:text-emerald-200 font-semibold">
-                  Pronto para leitura automática. Aproxime o bastão da tag do animal.
+                  Aproxime o leitor do brinco para identificar o animal.
                 </span>
                 <button
                   type="button"
                   onClick={handleDisconnectBle}
-                  className="px-2.5 py-1 rounded-md text-xs font-semibold text-theme-secondary hover:text-red-500 bg-theme-surface border border-theme transition shrink-0"
+                  className="btn-secondary !py-1.5 !px-3 !min-h-[34px] text-xs shrink-0"
                 >
                   Desconectar
                 </button>
@@ -264,7 +243,7 @@ export default function IdentifyPage() {
                   type="button"
                   onClick={handleConnectBle}
                   disabled={bleStatus === "connecting"}
-                  className="btn-primary flex-1 py-2.5 min-h-[44px] text-xs sm:text-sm font-semibold"
+                  className="btn-primary flex-1 text-xs sm:text-sm"
                 >
                   {bleStatus === "connecting" ? (
                     <>
@@ -274,17 +253,17 @@ export default function IdentifyPage() {
                   ) : (
                     <>
                       <Bluetooth className="w-4 h-4" />
-                      <span>Conectar Leitor Bluetooth</span>
+                      <span>Conectar leitor</span>
                     </>
                   )}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setShowSimulator(!showSimulator)}
-                  className="btn-secondary py-2.5 px-3 text-xs font-medium shrink-0"
+                  onClick={() => setShowSimulator((v) => !v)}
+                  className="btn-secondary text-xs shrink-0"
                 >
-                  <span>Simular</span>
+                  <span>Simular leitura</span>
                   {showSimulator ? (
                     <ChevronUp className="w-3.5 h-3.5" />
                   ) : (
@@ -293,28 +272,24 @@ export default function IdentifyPage() {
                 </button>
               </div>
             ) : (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
-                <p className="font-semibold">Web Bluetooth indisponível neste navegador</p>
-                <p className="text-[11px] leading-relaxed">
-                  No iPhone Safari, utilize o navegador <strong>Bluefy</strong> para pareamento BLE
-                  ou utilize a entrada manual logo abaixo.
-                </p>
+              <div className="p-3 rounded-[10px] card-subtle text-xs text-theme-secondary">
+                Este navegador não suporta leitura direta por Bluetooth. Utilize a busca abaixo.
               </div>
             )}
 
             {(showSimulator || !isBleSupported) && (
-              <div className="mt-3.5 pt-3 border-t border-theme space-y-2">
+              <div className="pt-3 border-t border-theme space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-theme-secondary">
-                    Simulador de leitura RFID
+                    Teste com código simulado
                   </span>
                   <button
                     type="button"
-                    onClick={generateRandomEpc}
-                    className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
+                    onClick={generateSampleTag}
+                    className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
                   >
                     <Shuffle className="w-3 h-3" />
-                    Gerar EPC 24-Hex
+                    <span>Gerar exemplo</span>
                   </button>
                 </div>
 
@@ -323,30 +298,29 @@ export default function IdentifyPage() {
                     type="text"
                     value={simulatedTag}
                     onChange={(e) => setSimulatedTag(e.target.value.toUpperCase())}
-                    placeholder="Ex: E2801160600002047E7A5A01"
-                    className="field-input font-mono text-xs uppercase flex-1"
+                    placeholder="Código do brinco eletrônico"
+                    className="field-input font-mono-tag text-xs uppercase flex-1"
                   />
                   <button
                     type="button"
                     disabled={!simulatedTag.trim() || loading}
                     onClick={handleSimulateTag}
-                    className="btn-secondary px-3.5 py-2 text-xs font-semibold shrink-0"
+                    className="btn-secondary !px-3.5 text-xs shrink-0"
                   >
-                    Simular
+                    Testar
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Entrada Manual & Busca Rápida (Secundário ao Bluetooth) */}
-          <div className="card p-4">
-            <h2 className="text-xs sm:text-sm font-bold text-theme-primary mb-1">
-              Entrada manual · Brinco ou apelido
+          {/* Busca Manual */}
+          <div className="card p-4 sm:p-5">
+            <h2 className="text-sm font-bold text-theme-primary mb-1">
+              Buscar por brinco ou apelido
             </h2>
-            <p className="text-[11px] text-theme-secondary mb-3 leading-relaxed">
-              Caso esteja sem o bastão Bluetooth, digite o código da tag ou filtre seu rebanho pelo
-              apelido.
+            <p className="text-xs text-theme-secondary mb-3">
+              Digite o código do animal para consultar ou filtre sua lista abaixo.
             </p>
 
             {error && <div className="error-banner mb-3">{error}</div>}
@@ -358,8 +332,8 @@ export default function IdentifyPage() {
                   id="tag-input"
                   value={queryOrTag}
                   onChange={(e) => setQueryOrTag(e.target.value)}
-                  className="field-input pl-10 text-xs sm:text-sm"
-                  placeholder="Apelido, raça, brinco ou E280…"
+                  className="field-input pl-10 text-sm"
+                  placeholder="Apelido, raça ou número do brinco…"
                   autoComplete="off"
                 />
               </div>
@@ -367,7 +341,7 @@ export default function IdentifyPage() {
               <button
                 type="submit"
                 disabled={loading || !queryOrTag.trim()}
-                className="btn-secondary py-2 px-4 min-h-[40px] text-xs font-semibold shrink-0"
+                className="btn-secondary !px-4 text-xs sm:text-sm shrink-0"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -379,46 +353,45 @@ export default function IdentifyPage() {
             </form>
           </div>
 
-          {/* Resultado do Scan / Consulta RFID */}
+          {/* Resultado da Consulta */}
           {scanResult && (
             <div
               className={`card p-4 sm:p-5 border ${
                 scanResult.registered
-                  ? "border-emerald-500/45 bg-emerald-500/5"
-                  : "border-amber-500/45 bg-amber-500/5"
+                  ? "border-emerald-500/45 bg-emerald-500/[0.04]"
+                  : "border-amber-500/45 bg-amber-500/[0.04]"
               }`}
             >
               {scanResult.registered && scanResult.animal ? (
                 <div className="space-y-3.5">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-[10px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
                         <CheckCircle2 className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                          {scanResult.isOwner ? "Seu rebanho" : "Guarda compartilhada ativada"}
+                        <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 block">
+                          {scanResult.isOwner ? "Seu rebanho" : "Guarda compartilhada"}
                         </span>
                         <h3 className="text-base font-bold text-theme-primary">
                           {scanResult.animal.name || "Sem apelido"}
                         </h3>
                         <p className="text-xs text-theme-secondary">
-                          {scanResult.animal.breed} · {scanResult.animal.sex} ·{" "}
-                          {scanResult.animal.weight} kg
+                          {scanResult.animal.breed} — {scanResult.animal.sex} ({scanResult.animal.weight} kg)
                         </p>
                       </div>
                     </div>
 
                     {!scanResult.isOwner && (
-                      <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 inline-flex items-center gap-1 shrink-0">
+                      <span className="px-2 py-0.5 rounded-[7px] text-[11px] font-semibold bg-sky-500/12 text-sky-700 dark:text-sky-300 inline-flex items-center gap-1 shrink-0">
                         <Users className="w-3 h-3" />
-                        Compartilhado
+                        <span>Compartilhado</span>
                       </span>
                     )}
                   </div>
 
-                  <div className="p-2.5 rounded-lg bg-theme-surface-2 border border-theme flex items-center justify-between text-xs font-mono">
-                    <span className="text-theme-muted text-[11px]">RFID / Brinco</span>
+                  <div className="p-2.5 rounded-[10px] card-subtle flex items-center justify-between text-xs font-mono-tag">
+                    <span className="text-theme-muted font-sans">Identificador</span>
                     <span className="font-semibold text-theme-primary truncate max-w-[220px]">
                       {scanResult.animal.tag}
                     </span>
@@ -427,7 +400,7 @@ export default function IdentifyPage() {
                   <div className="flex gap-2">
                     <Link
                       href={`/animal/${scanResult.animal.id}`}
-                      className="btn-primary flex-1 py-2.5 text-xs font-semibold justify-center"
+                      className="btn-primary flex-1 text-xs"
                     >
                       <span>Abrir ficha</span>
                       <ChevronRight className="w-4 h-4" />
@@ -436,7 +409,7 @@ export default function IdentifyPage() {
                       href={`/camera?animalId=${scanResult.animal.id}&animalName=${encodeURIComponent(
                         scanResult.animal.name || scanResult.animal.tag
                       )}`}
-                      className="btn-secondary py-2.5 px-4 text-xs font-semibold"
+                      className="btn-secondary text-xs"
                     >
                       <Camera className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       <span>Fotografar</span>
@@ -445,25 +418,25 @@ export default function IdentifyPage() {
                 </div>
               ) : (
                 <div className="space-y-3.5">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-9 h-9 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-[10px] bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                       <AlertCircle className="w-5 h-5" />
                     </div>
                     <div>
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                        Tag não cadastrada
+                      <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 block">
+                        Não cadastrado
                       </span>
                       <h3 className="text-sm font-bold text-theme-primary">
-                        Nenhum animal registrado com este identificador
+                        Nenhum animal encontrado com este brinco
                       </h3>
                       <p className="text-xs text-theme-secondary mt-0.5">
-                        Cadastre o animal agora usando a tag consultada.
+                        Cadastre o animal agora para começar os registros.
                       </p>
                     </div>
                   </div>
 
-                  <div className="p-2.5 rounded-lg bg-theme-surface-2 border border-theme flex items-center justify-between text-xs font-mono">
-                    <span className="text-theme-muted text-[11px]">Identificador</span>
+                  <div className="p-2.5 rounded-[10px] card-subtle flex items-center justify-between text-xs font-mono-tag">
+                    <span className="text-theme-muted font-sans">Código</span>
                     <span className="font-semibold text-theme-primary truncate max-w-[220px]">
                       {scanResult.rfid}
                     </span>
@@ -471,29 +444,29 @@ export default function IdentifyPage() {
 
                   <Link
                     href={`/animal/new?tag=${encodeURIComponent(scanResult.rfid)}`}
-                    className="btn-primary w-full py-2.5 text-xs font-semibold justify-center"
+                    className="btn-primary w-full text-xs"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Cadastrar animal com esta tag</span>
+                    <span>Cadastrar este animal</span>
                   </Link>
                 </div>
               )}
             </div>
           )}
 
-          {/* Lista instantânea de correspondências ou recentes */}
+          {/* Lista Rápida */}
           {matchingAnimals.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2.5 px-0.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-theme-muted">
-                  {queryOrTag.trim() ? "Correspondências no seu rebanho" : "Acessados recentemente"}
+                <h3 className="text-xs font-semibold text-theme-muted">
+                  {queryOrTag.trim() ? "Resultados no seu rebanho" : "Recentes no rebanho"}
                 </h3>
                 <Link
                   href="/animal/new"
-                  className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
+                  className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Novo cadastro
+                  <span>Novo animal</span>
                 </Link>
               </div>
 
@@ -514,26 +487,26 @@ export default function IdentifyPage() {
                             {displayName}
                           </span>
                           {isShared && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-400 shrink-0">
+                            <span className="px-1.5 py-0.5 rounded-[6px] text-[10px] font-semibold bg-sky-500/12 text-sky-700 dark:text-sky-300 shrink-0">
                               Compartilhado
                             </span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-theme-secondary tabular-nums">
-                          <span className="font-mono text-[11px] bg-theme-surface-2 px-1.5 py-0.5 rounded text-theme-muted">
+                        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 mt-0.5 text-xs text-theme-secondary tabular-nums">
+                          <span className="font-mono-tag text-[11px] text-theme-muted">
                             {a.tag.length > 14 ? `${a.tag.slice(0, 8)}…` : a.tag}
                           </span>
                           <span>{a.breed}</span>
-                          <span>· {photoCount} {photoCount === 1 ? "foto" : "fotos"}</span>
+                          <span>
+                            {photoCount} {photoCount === 1 ? "foto" : "fotos"}
+                          </span>
                         </div>
                       </Link>
 
                       <div className="flex items-center gap-1.5 shrink-0">
                         <Link
-                          href={`/camera?animalId=${a.id}&animalName=${encodeURIComponent(
-                            displayName
-                          )}`}
-                          className="btn-primary py-2 px-3 text-xs font-semibold"
+                          href={`/camera?animalId=${a.id}&animalName=${encodeURIComponent(displayName)}`}
+                          className="btn-primary !py-2 !px-3 !min-h-[36px] text-xs"
                         >
                           <Camera className="w-3.5 h-3.5" />
                           <span className="hidden sm:inline">Fotografar</span>
@@ -541,7 +514,7 @@ export default function IdentifyPage() {
                         <Link
                           href={`/animal/${a.id}`}
                           className="p-2 text-theme-muted hover:text-theme-primary"
-                          aria-label="Abrir ficha do animal"
+                          aria-label="Abrir ficha"
                         >
                           <ChevronRight className="w-4 h-4" />
                         </Link>
@@ -552,7 +525,6 @@ export default function IdentifyPage() {
               </div>
             </div>
           )}
-
         </div>
       </main>
 
