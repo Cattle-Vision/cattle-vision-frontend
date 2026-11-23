@@ -80,10 +80,10 @@ function PhotoCard({
 
       {icsCalculated && (
         <div
-          title={`ICS calculado: ${photo.ics?.score?.toFixed(1)}`}
-          className="absolute bottom-8 left-2.5 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold pointer-events-none bg-emerald-600/90 text-white"
+          title={`ICS calculado: ${photo.ics?.score?.toFixed(2)}`}
+          className="absolute bottom-8 left-2.5 z-10 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold pointer-events-none bg-blue-600/90 text-white"
         >
-          ICS {photo.ics?.score?.toFixed(1)}
+          ICS {photo.ics?.score?.toFixed(2)}
         </div>
       )}
 

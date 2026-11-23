@@ -31,6 +31,7 @@ export default function PhotoLightbox({
   const [imgStatus, setImgStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const { toast } = useToast();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const touchStartX = useRef<number | null>(null);
 
@@ -57,8 +58,8 @@ export default function PhotoLightbox({
     };
   }, []);
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
-    if (e.target === dialogRef.current) onClose();
+  const handleBackdropClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (e.target === dialogRef.current || e.target === stageRef.current) onClose();
   };
 
   const prev = useCallback(() => {
@@ -94,6 +95,21 @@ export default function PhotoLightbox({
 
   const currentPhoto = localPhotos[currentIndex];
   if (!currentPhoto) return null;
+
+  const currentPhotoRaw = currentPhoto as Photo & {
+    icsStatus?: string;
+    icsScore?: number | null;
+    icsClassification?: string | null;
+  };
+  const effectiveIcsStatus = currentPhoto.ics?.status || currentPhotoRaw.icsStatus;
+  const effectiveIcsScore =
+    typeof currentPhoto.ics?.score === 'number'
+      ? currentPhoto.ics.score
+      : typeof currentPhotoRaw.icsScore === 'number'
+        ? currentPhotoRaw.icsScore
+        : null;
+  const effectiveIcsClass =
+    currentPhoto.ics?.classification || currentPhotoRaw.icsClassification || '';
 
   const url = getPhotoUrl(currentPhoto.id);
   const hasScore = typeof currentPhoto.score === 'number' && !Number.isNaN(currentPhoto.score);
@@ -198,15 +214,15 @@ export default function PhotoLightbox({
       onClick={handleBackdropClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 m-0 p-0 w-full h-full max-w-none max-h-none bg-slate-950/95 backdrop-blur-md flex items-center justify-center border-none outline-none animate-fade-in"
+      className="fixed inset-0 m-0 p-0 w-full h-[100dvh] max-w-none max-h-none bg-slate-950/95 backdrop-blur-md flex flex-col border-none outline-none animate-fade-in overflow-hidden"
       style={{ padding: 0 }}
     >
-      {/* Top Bar */}
+      {/* Top Bar dedicada (sem sobrepor nem cortar a imagem) */}
       <div
-        className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent"
-        style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+        className="relative z-20 shrink-0 flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 bg-black/60 border-b border-white/10"
+        style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
       >
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
           <span className="text-white/90 text-xs font-bold bg-white/10 px-2.5 py-1 rounded-md backdrop-blur-sm">
             {currentIndex + 1} / {localPhotos.length}
           </span>
@@ -216,17 +232,17 @@ export default function PhotoLightbox({
               Enquadramento: {Math.round(currentPhoto.score as number)}%
             </span>
           )}
-          {currentPhoto.ics?.status === 'CALCULATED' &&
-          typeof currentPhoto.ics.score === 'number' ? (
+          {effectiveIcsStatus === 'CALCULATED' && effectiveIcsScore !== null ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-200 border border-blue-400/30">
-              ICS: {currentPhoto.ics.score.toFixed(2)} · {currentPhoto.ics.classification}
+              ICS: {effectiveIcsScore.toFixed(2)}
+              {effectiveIcsClass ? ` · ${effectiveIcsClass}` : ''}
             </span>
-          ) : currentPhoto.ics?.status === 'QUEUED' || currentPhoto.ics?.status === 'PROCESSING' ? (
+          ) : effectiveIcsStatus === 'QUEUED' || effectiveIcsStatus === 'PROCESSING' ? (
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-200 border border-blue-400/30">
               <Loader2 className="w-3 h-3 animate-spin" />
-              {currentPhoto.ics?.status === 'PROCESSING' ? 'Calculando ICS…' : 'ICS: Na fila'}
+              {effectiveIcsStatus === 'PROCESSING' ? 'Calculando ICS…' : 'ICS: Na fila'}
             </span>
-          ) : currentPhoto.ics?.status === 'FAILED' || currentPhoto.ics?.status === 'ERROR' ? (
+          ) : effectiveIcsStatus === 'FAILED' || effectiveIcsStatus === 'ERROR' ? (
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-200 border border-rose-400/30">
               ICS: Não identificado
             </span>
@@ -237,7 +253,7 @@ export default function PhotoLightbox({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={handleGenerateCurrentIcs}
@@ -254,7 +270,7 @@ export default function PhotoLightbox({
             <span className="hidden xs:inline">
               {generatingIcs
                 ? 'Na fila…'
-                : currentPhoto.ics?.status === 'CALCULATED'
+                : effectiveIcsStatus === 'CALCULATED'
                   ? 'Regerar ICS'
                   : 'Gerar ICS'}
             </span>
@@ -296,8 +312,12 @@ export default function PhotoLightbox({
         </div>
       </div>
 
-      {/* Imagem principal */}
-      <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-10">
+      {/* Palco central da imagem: ocupa exatamente o espaço livre sem cortar nenhuma borda */}
+      <div
+        ref={stageRef}
+        onClick={handleBackdropClick}
+        className="relative flex-1 min-h-0 w-full flex items-center justify-center px-3 py-3 sm:px-14 sm:py-5 overflow-hidden"
+      >
         {imgStatus === 'loading' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
             <Loader2 className="w-7 h-7 animate-spin text-emerald-400" />
@@ -312,7 +332,7 @@ export default function PhotoLightbox({
             <span className="text-sm font-medium">Não foi possível carregar esta imagem.</span>
           </div>
         ) : (
-          <div className="relative inline-flex items-center justify-center max-w-full max-h-full">
+          <div className="relative flex items-center justify-center max-w-full max-h-full">
             <img
               ref={imgRef}
               key={currentPhoto.id}
@@ -320,7 +340,7 @@ export default function PhotoLightbox({
               alt={`Foto ${currentIndex + 1}`}
               onLoad={() => setImgStatus('loaded')}
               onError={() => setImgStatus('error')}
-              className={`max-w-full max-h-full object-contain rounded-lg animate-scale-in select-none shadow-2xl transition-opacity duration-200 ${
+              className={`block w-auto h-auto max-w-[calc(100vw-1.5rem)] sm:max-w-[calc(100vw-7rem)] max-h-[calc(100dvh-9.5rem)] object-contain rounded-lg animate-scale-in select-none shadow-2xl transition-opacity duration-200 ${
                 imgStatus === 'loaded' ? 'opacity-100' : 'opacity-0'
               }`}
               draggable={false}
@@ -351,70 +371,67 @@ export default function PhotoLightbox({
               )}
           </div>
         )}
+
+        {/* Botão anterior */}
+        {photos.length > 1 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              prev();
+            }}
+            aria-label="Foto anterior"
+            className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-md transition active:scale-95 z-10 backdrop-blur-sm border border-white/15"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Botão próximo */}
+        {photos.length > 1 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              next();
+            }}
+            aria-label="Próxima foto"
+            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-2 rounded-md transition active:scale-95 z-10 backdrop-blur-sm border border-white/15"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
-      {/* Aviso de processamento quando a foto está na fila de ICS */}
-      {(currentPhoto.ics?.status === 'QUEUED' || currentPhoto.ics?.status === 'PROCESSING') && (
+      {/* Barra inferior para status da fila e dots de navegação sem cobrir a foto */}
+      {(photos.length > 1 ||
+        effectiveIcsStatus === 'QUEUED' ||
+        effectiveIcsStatus === 'PROCESSING') && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full bg-black/75 border border-blue-400/30 text-[11px] text-blue-200 backdrop-blur-sm pointer-events-none whitespace-nowrap max-w-[90vw] truncate"
-          style={{
-            bottom:
-              photos.length > 1
-                ? 'calc(max(1.25rem, env(safe-area-inset-bottom)) + 2.25rem)'
-                : 'max(1rem, env(safe-area-inset-bottom))',
-          }}
+          className="relative z-20 shrink-0 flex flex-col items-center gap-1.5 px-3 py-2.5 bg-black/50 border-t border-white/10"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
-          Calculando ICS no servidor (modelo YOLO26m ONNX)…
-        </div>
-      )}
+          {(effectiveIcsStatus === 'QUEUED' || effectiveIcsStatus === 'PROCESSING') && (
+            <div className="px-3 py-1 rounded-full bg-black/70 border border-blue-400/30 text-[11px] text-blue-200 whitespace-nowrap max-w-[90vw] truncate">
+              Calculando ICS no servidor (modelo YOLO26m ONNX)…
+            </div>
+          )}
 
-      {/* Botão anterior */}
-      {photos.length > 1 && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            prev();
-          }}
-          aria-label="Foto anterior"
-          className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-md transition active:scale-95 z-10 backdrop-blur-sm"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-      )}
-
-      {/* Botão próximo */}
-      {photos.length > 1 && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            next();
-          }}
-          aria-label="Próxima foto"
-          className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white p-2 rounded-md transition active:scale-95 z-10 backdrop-blur-sm"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      )}
-
-      {/* Dots de navegação */}
-      {photos.length > 1 && (
-        <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-black/50 px-3 py-1.5 rounded-full backdrop-blur-sm"
-          style={{ bottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
-        >
-          {photos.map((_, i) => (
-            <button
-              key={i}
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentIndex(i);
-              }}
-              aria-label={`Ir para foto ${i + 1}`}
-              className={`w-2 h-2 rounded-full transition-all ${
-                i === currentIndex ? 'bg-emerald-400 scale-125 w-4' : 'bg-white/40'
-              }`}
-            />
-          ))}
+          {photos.length > 1 && (
+            <div className="flex gap-2 bg-black/40 px-3 py-1.5 rounded-full">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentIndex(i);
+                  }}
+                  aria-label={`Ir para foto ${i + 1}`}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === currentIndex ? 'bg-emerald-400 scale-125 w-4' : 'bg-white/40'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </dialog>
