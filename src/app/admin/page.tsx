@@ -415,78 +415,82 @@ export default function AdminPage() {
         backHref="/dashboard"
         title="Central de Gestão"
         subtitle="Rebanho completo, capturas e usuários"
-        actions={
-          <button
-            onClick={handleDownload}
-            disabled={downloading || stats.totalPhotos === 0}
-            className="btn-primary !min-h-[36px] !py-1.5 !px-3 text-xs shrink-0"
-            title="Exportar fotos e dados em ZIP"
-            aria-label="Exportar ZIP"
-          >
-            {downloading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Download className="w-3.5 h-3.5" />
-            )}
-            <span className="hidden xs:inline">
-              {downloading ? 'Gerando…' : 'Exportar ZIP'}
-            </span>
-          </button>
-        }
       />
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div className="card p-3.5 sm:p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
-              Total Geral
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
-              {stats.totalAnimals}
-            </p>
-            <p className="text-[11px] text-theme-secondary mt-0.5">
-              Bovinos catalogados
-            </p>
+      <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 space-y-5">
+        {/* Hero Board da Gestão */}
+        <section className="card p-5 sm:p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-theme">
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-theme-primary tracking-tight">
+                Painel Consolidado do Rebanho
+              </h1>
+              <p className="text-xs sm:text-sm text-theme-secondary mt-0.5">
+                Acompanhe indicadores gerais, avalie o lote e exporte imagens e registros em ZIP.
+              </p>
+            </div>
+
+            <button
+              onClick={handleDownload}
+              disabled={downloading || stats.totalPhotos === 0}
+              className="btn-primary text-xs sm:text-sm shrink-0"
+              title="Baixar arquivo ZIP com fotos e metadados do banco"
+            >
+              {downloading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              <span>{downloading ? 'Gerando pacote…' : 'Baixar Dataset (ZIP)'}</span>
+            </button>
           </div>
 
-          <div className="card p-3.5 sm:p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-              Fotos Avaliadas
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-emerald-700 dark:text-emerald-400 mt-1 tabular-nums">
-              {stats.totalPhotos}
-            </p>
-            <p className="text-[11px] text-theme-secondary mt-0.5">
-              Fotos anatômicas
-            </p>
-          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="card-subtle p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold text-theme-muted">Total geral</p>
+              <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
+                {stats.totalAnimals}
+              </p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">
+                Animais catalogados
+              </p>
+            </div>
 
-          <div className="card p-3.5 sm:p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
-              Operadores
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
-              {stats.totalUsers}
-            </p>
-            <p className="text-[11px] text-theme-secondary mt-0.5">
-              {stats.totalAdmins} com perfil admin
-            </p>
-          </div>
+            <div className="card-subtle p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                Capturas
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-emerald-700 dark:text-emerald-400 mt-1 tabular-nums">
+                {stats.totalPhotos}
+              </p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">
+                Fotos registradas
+              </p>
+            </div>
 
-          <div className="card p-3.5 sm:p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-theme-muted">
-              Média Global
-            </p>
-            <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
-              {stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
-            </p>
-            <p className="text-[11px] text-theme-secondary mt-0.5">
-              Todas as fotos do dataset
-            </p>
-          </div>
-        </div>
+            <div className="card-subtle p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold text-theme-muted">Operadores</p>
+              <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
+                {stats.totalUsers}
+              </p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">
+                {stats.totalAdmins} {stats.totalAdmins === 1 ? 'administrador' : 'administradores'}
+              </p>
+            </div>
 
-        <div className="flex border-b border-theme mb-5 gap-2">
+            <div className="card-subtle p-3.5 sm:p-4">
+              <p className="text-[11px] font-semibold text-theme-muted">Enquadramento médio</p>
+              <p className="text-xl sm:text-2xl font-bold text-theme-primary mt-1 tabular-nums">
+                {stats.avgScore !== null ? `${stats.avgScore}%` : '—'}
+              </p>
+              <p className="text-[11px] text-theme-secondary mt-0.5">
+                Qualidade média das fotos
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="flex border-b border-theme gap-2">
           <button
             onClick={() => setActiveTab('dataset')}
             className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 transition flex items-center gap-1.5 ${
@@ -496,7 +500,7 @@ export default function AdminPage() {
             }`}
           >
             <Database className="w-4 h-4" />
-            Curadoria do Dataset ({stats.totalAnimals})
+            <span>Rebanho e Capturas ({stats.totalAnimals})</span>
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -507,7 +511,7 @@ export default function AdminPage() {
             }`}
           >
             <Users className="w-4 h-4" />
-            Usuários & Permissões ({stats.totalUsers})
+            <span>Usuários e Permissões ({stats.totalUsers})</span>
           </button>
         </div>
 
@@ -526,14 +530,14 @@ export default function AdminPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-xs font-semibold text-theme-secondary select-none cursor-pointer bg-theme-surface border border-theme px-3 py-2 rounded-lg">
+                <label className="flex items-center gap-2 text-xs font-semibold text-theme-secondary select-none cursor-pointer bg-theme-surface border border-theme px-3 py-2 rounded-[10px]">
                   <input
                     type="checkbox"
                     checked={onlyWithPhotos}
                     onChange={(e) => setOnlyWithPhotos(e.target.checked)}
                     className="accent-emerald-600 w-3.5 h-3.5"
                   />
-                  Apenas com fotos
+                  <span>Apenas com fotos</span>
                 </label>
 
                 {stats.totalPhotos > 0 && (
@@ -561,20 +565,20 @@ export default function AdminPage() {
                     <button
                       onClick={handleRecalibrateScores}
                       disabled={recalibrating || regeneratingIcs}
-                      className="btn-secondary py-2 px-3 text-xs flex items-center gap-1.5 border-emerald-500/30 hover:border-emerald-500/50"
-                      title="Recalcular confiança de enquadramento de todas as fotos"
+                      className="btn-secondary !py-2 !px-3 !min-h-[38px] text-xs"
+                      title="Reavaliar o enquadramento das fotos"
                     >
                       {recalibrating ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
                       ) : (
-                        <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                        <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                       )}
                       <span className="tabular-nums">
                         {recalibrating
                           ? recalibratingProgress
                             ? `${recalibratingProgress.current}/${recalibratingProgress.total}…`
-                            : 'Recalculando…'
-                          : 'Recalcular Confiança'}
+                            : 'Reavaliando…'
+                          : 'Reavaliar fotos'}
                       </span>
                     </button>
                   </>

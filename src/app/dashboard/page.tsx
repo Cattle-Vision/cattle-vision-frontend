@@ -457,15 +457,6 @@ export default function DashboardPage() {
             ? "Carregando…"
             : `${stats.totalAnimals} ${stats.totalAnimals === 1 ? "animal" : "animais"} no lote`
         }
-        actions={
-          <Link
-            href="/animal/new"
-            className="hidden sm:inline-flex btn-primary !min-h-[36px] !py-1.5 !px-3 text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Novo animal</span>
-          </Link>
-        }
       />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-6 py-5 pb-24 sm:pb-10">
