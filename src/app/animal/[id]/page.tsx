@@ -130,6 +130,14 @@ export default function AnimalProfilePage() {
     };
   });
 
+  const isAnimalOwner = Boolean(
+    animal &&
+      (animal.isOwner ??
+        animal.custody?.isOwner ??
+        (user ? animal.ownerId === Number(user.id) : false))
+  );
+  const canEditTag = isAnimalOwner || isAdmin;
+
   const currentEditTagRef = useRef(editForm.tag);
   useEffect(() => {
     currentEditTagRef.current = editForm.tag;
@@ -145,7 +153,7 @@ export default function AnimalProfilePage() {
     });
 
     const unsubTag = bluetoothRfid.onTag((detail) => {
-      if (!editing || (!isOwner && !isAdmin)) return;
+      if (!editing || !canEditTag) return;
       const normalized = normalizeTag(detail.tag);
       if (currentEditTagRef.current === normalized) return;
       currentEditTagRef.current = normalized;
@@ -157,7 +165,7 @@ export default function AnimalProfilePage() {
       unsubStatus();
       unsubTag();
     };
-  }, [editing, isAdmin, isOwner, toast]);
+  }, [canEditTag, editing, toast]);
 
   const handleToggleEditBle = async () => {
     if (bleStatus === "connected") {
@@ -531,8 +539,7 @@ export default function AnimalProfilePage() {
   const photos = animal.photos ?? [];
   const photoCount = photos.length;
   const custody = animal.custody;
-  const isOwner =
-    animal.isOwner ?? (custody?.isOwner ?? (user ? animal.ownerId === Number(user.id) : false));
+  const isOwner = isAnimalOwner;
   const canManage = custody?.canManage ?? (isOwner || isAdmin);
   const coordText = formatCoordinates(animal.latitude, animal.longitude);
   const mapsUrl = buildGoogleMapsUrl(
