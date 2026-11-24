@@ -4,7 +4,7 @@
  * - Assets imutáveis `/_next/static/*`: Cache-First para carregamento instantâneo.
  * - Páginas e navegação: Network-First com fallback em cache para resiliência no campo.
  */
-const CACHE_NAME = "cattle-vision-pwa-v5";
+const CACHE_NAME = "cattle-vision-pwa-v6";
 const PRECACHE_URLS = [
   "/",
   "/login",
@@ -50,7 +50,13 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/_vercel/")
+  ) {
+    return;
+  }
 
   // Bundles imutáveis e modelos locais de IA/WASM: Cache-First garante operação 100% offline no curral
   if (
