@@ -118,12 +118,13 @@ export default function ProfilePage() {
     setBleStatus(bluetoothRfid.getStatus());
     setBleDeviceName(bluetoothRfid.getDeviceName());
 
-    const unsub = bluetoothRfid.onStatusChange((status, devName) => {
+    const unsub = bluetoothRfid.onStatusChange((status, devName, errMsg) => {
       setBleStatus(status);
-      if (devName) setBleDeviceName(devName);
+      setBleDeviceName(status === "connected" ? devName || "" : "");
+      if (status === "error" && errMsg) toast(errMsg, "error");
     });
     return () => unsub();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     setLocalAiStatus(getLocalVisionStatus());
@@ -221,7 +222,10 @@ export default function ProfilePage() {
       toast("Leitor Bluetooth desconectado.", "info");
       return;
     }
-    await bluetoothRfid.connect();
+    const ok = await bluetoothRfid.connect();
+    if (ok) {
+      toast("Leitor Bluetooth conectado.", "success");
+    }
   };
 
   const handleLogout = async () => {

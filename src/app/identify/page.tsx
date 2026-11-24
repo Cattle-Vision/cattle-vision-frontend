@@ -3,7 +3,7 @@
 /**
  * Identificação Rápida de Animais (`src/app/identify/page.tsx`).
  */
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -22,6 +22,7 @@ import { Animal, RfidScanResult } from "@/lib/types";
 import {
   apiFetchCached,
   getApiCacheSnapshot,
+  invalidateApiCache,
   readPersistedApiCache,
   scanRfidTag,
 } from "@/lib/api";
@@ -30,6 +31,8 @@ import AppShell from "@/components/AppShell";
 import { useToast } from "@/components/ui/Toast";
 
 const ANIMALS_SUMMARY_ENDPOINT = "/api/animals?summary=1";
+// Janela de supressão visual para reenvios periódicos da mesma tag pelo ESP32 (INTERVALO_MESMA_TAG = 3000 ms)
+const SAME_TAG_DISPLAY_COOLDOWN_MS = 8_000;
 
 export default function IdentifyPage() {
   const { toast } = useToast();
@@ -46,6 +49,72 @@ export default function IdentifyPage() {
   const [scanResult, setScanResult] = useState<RfidScanResult | null>(null);
   const [simulatedTag, setSimulatedTag] = useState("");
 
+  const activeScanRef = useRef<{ tag: string; at: number }>({ tag: "", at: 0 });
+  const requestSeqRef = useRef(0);
+
+  const handleProcessRfid = useCallback(
+    async (rfidTag: string, source: RfidEventDetail["source"] = "manual") => {
+      const clean = normalizeTag(rfidTag);
+      if (!clean) return;
+
+      // O ESP32 reenvia o mesmo brinco a cada 3s enquanto estiver no campo da antena.
+      // Mantemos o cartão estável na tela sem apagar botões ou repetir toasts/bipes.
+      const now = Date.now();
+      if (
+        source === "ble" &&
+        activeScanRef.current.tag === clean &&
+        now - activeScanRef.current.at < SAME_TAG_DISPLAY_COOLDOWN_MS
+      ) {
+        activeScanRef.current.at = now;
+        return;
+      }
+
+      const seq = ++requestSeqRef.current;
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await scanRfidTag(clean);
+        if (seq !== requestSeqRef.current) return;
+
+        activeScanRef.current = { tag: clean, at: Date.now() };
+        setScanResult(res);
+
+        if (res.registered && res.animal) {
+          bluetoothRfid.playAudioFeedback("success");
+          bluetoothRfid.triggerHaptic([80, 50, 80]);
+          toast(
+            res.isOwner
+              ? "Animal identificado."
+              : "Animal localizado e adicionado ao acesso compartilhado.",
+            "success"
+          );
+          // Atualiza lista rápida em segundo plano caso guarda compartilhada tenha sido concedida
+          invalidateApiCache(ANIMALS_SUMMARY_ENDPOINT);
+          apiFetchCached<Animal[]>(ANIMALS_SUMMARY_ENDPOINT, 0)
+            .then((list) => {
+              if (Array.isArray(list)) setAllAnimals(list);
+            })
+            .catch(() => {});
+        } else {
+          bluetoothRfid.playAudioFeedback("alert");
+          toast("Brinco ainda não cadastrado.", "info");
+        }
+      } catch (err: any) {
+        if (seq !== requestSeqRef.current) return;
+        setScanResult(null);
+        activeScanRef.current = { tag: "", at: 0 };
+        setError(err?.message || "Não foi possível consultar este código.");
+        bluetoothRfid.playAudioFeedback("alert");
+      } finally {
+        if (seq === requestSeqRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [toast]
+  );
+
   useEffect(() => {
     if (!cachedAnimals) {
       const persisted = readPersistedApiCache<Animal[]>(ANIMALS_SUMMARY_ENDPOINT);
@@ -60,53 +129,24 @@ export default function IdentifyPage() {
     setBleStatus(bluetoothRfid.getStatus());
     setBleDeviceName(bluetoothRfid.getDeviceName());
 
-    const unsubStatus = bluetoothRfid.onStatusChange((status, name) => {
+    const unsubStatus = bluetoothRfid.onStatusChange((status, name, errMsg) => {
       setBleStatus(status);
-      if (name) setBleDeviceName(name);
+      setBleDeviceName(status === "connected" ? name || "" : "");
+      if (status === "error" && errMsg) {
+        setError(errMsg);
+        toast(errMsg, "error");
+      }
     });
 
     const unsubTag = bluetoothRfid.onTag(async (detail: RfidEventDetail) => {
-      await handleProcessRfid(detail.tag);
+      await handleProcessRfid(detail.tag, detail.source);
     });
 
     return () => {
       unsubStatus();
       unsubTag();
     };
-  }, []);
-
-  async function handleProcessRfid(rfidTag: string) {
-    const clean = normalizeTag(rfidTag);
-    if (!clean) return;
-
-    setLoading(true);
-    setError("");
-    setScanResult(null);
-
-    try {
-      const res = await scanRfidTag(clean);
-      setScanResult(res);
-
-      if (res.registered && res.animal) {
-        bluetoothRfid.playAudioFeedback("success");
-        bluetoothRfid.triggerHaptic([80, 50, 80]);
-        toast(
-          res.isOwner
-            ? "Animal identificado."
-            : "Animal localizado e adicionado ao acesso compartilhado.",
-          "success"
-        );
-      } else {
-        bluetoothRfid.playAudioFeedback("alert");
-        toast("Brinco ainda não cadastrado.", "info");
-      }
-    } catch (err: any) {
-      setError(err?.message || "Não foi possível consultar este código.");
-      bluetoothRfid.playAudioFeedback("alert");
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [cachedAnimals, handleProcessRfid, toast]);
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +155,7 @@ export default function IdentifyPage() {
       setError("Digite o número do brinco ou código eletrônico.");
       return;
     }
-    await handleProcessRfid(normalized);
+    await handleProcessRfid(normalized, "manual");
   };
 
   const handleConnectBle = async () => {
@@ -319,6 +359,9 @@ export default function IdentifyPage() {
                       </h3>
                       <p className="text-xs text-theme-secondary">
                         {scanResult.animal.breed}, {scanResult.animal.sex} — {scanResult.animal.weight} kg
+                      </p>
+                      <p className="font-mono-tag text-[11px] text-theme-muted mt-0.5 break-all">
+                        {scanResult.animal.tag}
                       </p>
                     </div>
                   </div>

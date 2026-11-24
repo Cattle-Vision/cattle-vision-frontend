@@ -130,6 +130,11 @@ export default function AnimalProfilePage() {
     };
   });
 
+  const currentEditTagRef = useRef(editForm.tag);
+  useEffect(() => {
+    currentEditTagRef.current = editForm.tag;
+  }, [editForm.tag]);
+
   useEffect(() => {
     setBleSupported(bluetoothRfid.isSupported());
     setBleStatus(bluetoothRfid.getStatus());
@@ -140,11 +145,11 @@ export default function AnimalProfilePage() {
     });
 
     const unsubTag = bluetoothRfid.onTag((detail) => {
-      if (!editing) return;
+      if (!editing || (!isOwner && !isAdmin)) return;
       const normalized = normalizeTag(detail.tag);
+      if (currentEditTagRef.current === normalized) return;
+      currentEditTagRef.current = normalized;
       setEditForm((prev) => ({ ...prev, tag: normalized }));
-      bluetoothRfid.playAudioFeedback("read");
-      bluetoothRfid.triggerHaptic([80, 40, 80]);
       toast(`Código atualizado via Bluetooth: ${normalized}`, "success");
     });
 
@@ -152,7 +157,7 @@ export default function AnimalProfilePage() {
       unsubStatus();
       unsubTag();
     };
-  }, [editing, toast]);
+  }, [editing, isAdmin, isOwner, toast]);
 
   const handleToggleEditBle = async () => {
     if (bleStatus === "connected") {

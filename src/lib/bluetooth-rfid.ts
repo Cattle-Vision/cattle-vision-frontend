@@ -1,16 +1,14 @@
 /**
  * Módulo de Comunicação Web Bluetooth para Leitor RFID Bovino ESP32 (`src/lib/bluetooth-rfid.ts`).
  *
- * Arquitetura:
- * - Utiliza a Web Bluetooth API (`navigator.bluetooth`) para pareamento seguro direto pelo navegador.
- * - Conecta-se ao GATT Server do dispositivo ESP32 ("CattleVision-RFID").
- * - Escuta notificações assíncronas na característica GATT configurada.
- * - Decodifica tags EPC UHF de 12 bytes (24 caracteres hexadecimais em maiúsculo).
- * - Realiza debouncing de 2.5s para evitar leituras duplicadas involuntárias no curral.
- * - Provê feedback sonoro via Web Audio API (tons sintetizados sem necessidade de arquivos mp3 externos)
- *   e feedback tátil via `navigator.vibrate` em smartphones.
- * - Suporta fallback gracioso para navegadores sem suporte (ex: Safari iOS padrão),
- *   orientando navegadores compatíveis (Chrome Android, Edge, Bluefy no iOS) ou acionando modal de simulação.
+ * Arquitetura e compatibilidade com o firmware `finalesp`:
+ * - Conecta-se ao GATT Server BLE `"CattleVision-RFID"` via Web Bluetooth API (`navigator.bluetooth`).
+ * - Filtra por Service UUID (`4fafc201-1fb5-459e-8fcc-c5c9c331914b`) e prefixos de nome para garantir
+ *   descoberta confiável mesmo quando o nome é entregue apenas no Scan Response.
+ * - Escuta notificações assíncronas na característica `beb5483e-36e1-4688-b7f5-ea07361b26a8`
+ *   com limpeza determinística de listeners para suportar reconexões em campo.
+ * - Decodifica payloads ASCII hexadecimais de 24 caracteres (12 bytes EPC, MTU >= 64 no ESP32),
+ *   descarta ruído/UID zerado e aplica debounce local de 2.5s.
  */
 
 export const RFID_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
@@ -36,18 +34,27 @@ class BluetoothRfidService {
   private device: any = null;
   private characteristic: any = null;
   private status: BluetoothStatus = "disconnected";
-  private deviceName: string = "";
-  private lastTag: string = "";
-  private lastTagTime: number = 0;
+  private deviceName = "";
+  private lastTag = "";
+  private lastTagTime = 0;
   private tagListeners: Set<TagListener> = new Set();
   private statusListeners: Set<StatusListener> = new Set();
   private audioCtx: AudioContext | null = null;
+  private connectPromise: Promise<boolean> | null = null;
+
+  private readonly onCharacteristicChangedBound = (event: any) =>
+    this.handleCharacteristicValue(event);
+
+  private readonly onGattDisconnectedBound = () => {
+    this.detachCharacteristic();
+    this.deviceName = "";
+    this.setStatus("disconnected");
+    this.playAudioFeedback("disconnect");
+  };
 
   constructor() {
-    if (typeof window !== "undefined") {
-      if (!("bluetooth" in navigator)) {
-        this.status = "unsupported";
-      }
+    if (typeof window !== "undefined" && !("bluetooth" in navigator)) {
+      this.status = "unsupported";
     }
   }
 
@@ -88,6 +95,39 @@ class BluetoothRfidService {
     this.statusListeners.forEach((l) => l(status, this.deviceName, errorMsg));
   }
 
+  private detachCharacteristic() {
+    if (this.characteristic) {
+      try {
+        this.characteristic.removeEventListener(
+          "characteristicvaluechanged",
+          this.onCharacteristicChangedBound
+        );
+      } catch {
+        // Ignora se o GATT já foi encerrado
+      }
+      this.characteristic = null;
+    }
+  }
+
+  private detachDevice(disconnectGatt = false) {
+    this.detachCharacteristic();
+    if (this.device) {
+      try {
+        this.device.removeEventListener("gattserverdisconnected", this.onGattDisconnectedBound);
+      } catch {
+        // Ignora erro ao remover listener
+      }
+      if (disconnectGatt && this.device.gatt?.connected) {
+        try {
+          this.device.gatt.disconnect();
+        } catch {
+          // Ignora erro ao desconectar GATT
+        }
+      }
+      this.device = null;
+    }
+  }
+
   /**
    * Emite feedback sonoro sintético no alto-falante do celular/computador.
    */
@@ -102,7 +142,7 @@ class BluetoothRfidService {
       }
 
       if (this.audioCtx.state === "suspended") {
-        this.audioCtx.resume();
+        void this.audioCtx.resume();
       }
 
       const ctx = this.audioCtx;
@@ -115,14 +155,12 @@ class BluetoothRfidService {
       const now = ctx.currentTime;
 
       if (type === "read") {
-        // Bipe agudo curto de leitura de tag (880 Hz - A5)
         osc.frequency.setValueAtTime(880, now);
         gain.gain.setValueAtTime(0.3, now);
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
         osc.start(now);
         osc.stop(now + 0.12);
       } else if (type === "success") {
-        // Bipe duplo harmônico ascendente (Identificação confirmada / Guarda Compartilhada)
         osc.frequency.setValueAtTime(880, now);
         osc.frequency.exponentialRampToValueAtTime(1320, now + 0.18);
         gain.gain.setValueAtTime(0.25, now);
@@ -130,7 +168,6 @@ class BluetoothRfidService {
         osc.start(now);
         osc.stop(now + 0.22);
       } else if (type === "alert") {
-        // Tom grave de atenção (Animal não cadastrado / Atenção)
         osc.frequency.setValueAtTime(440, now);
         osc.frequency.linearRampToValueAtTime(330, now + 0.25);
         gain.gain.setValueAtTime(0.3, now);
@@ -138,7 +175,6 @@ class BluetoothRfidService {
         osc.start(now);
         osc.stop(now + 0.25);
       } else if (type === "disconnect") {
-        // Tom suave descendente
         osc.frequency.setValueAtTime(600, now);
         osc.frequency.linearRampToValueAtTime(300, now + 0.15);
         gain.gain.setValueAtTime(0.2, now);
@@ -166,7 +202,7 @@ class BluetoothRfidService {
 
   /**
    * Inicia o pareamento com o dispositivo ESP32 via Web Bluetooth.
-   * IMPORTANTE: Deve ser chamado diretamente em resposta a um gesto do usuário (clique no botão).
+   * IMPORTANTE: Deve ser chamado diretamente em resposta a um gesto do usuário.
    */
   public async connect(): Promise<boolean> {
     if (!this.isSupported()) {
@@ -174,12 +210,28 @@ class BluetoothRfidService {
       return false;
     }
 
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+
+    this.connectPromise = this.performConnect().finally(() => {
+      this.connectPromise = null;
+    });
+    return this.connectPromise;
+  }
+
+  private async performConnect(): Promise<boolean> {
     try {
+      // Garante encerramento limpo de qualquer sessão anterior antes de abrir nova janela BLE
+      this.detachDevice(true);
+      this.deviceName = "";
       this.setStatus("connecting");
 
-      // Solicita ao navegador a janela de escolha de dispositivos BLE
+      // Inclui tanto filtro pelo Service UUID anunciado no pacote primário quanto prefixos de nome
+      // (necessário no ESP32 porque o Device Name pode trafegar apenas no Scan Response).
       const device = await (navigator as any).bluetooth.requestDevice({
         filters: [
+          { services: [RFID_SERVICE_UUID] },
           { namePrefix: "CattleVision" },
           { namePrefix: "ESP32" },
           { namePrefix: "RFID" },
@@ -188,32 +240,11 @@ class BluetoothRfidService {
       });
 
       this.device = device;
-      this.deviceName = device.name || "Leitor Bluetooth";
+      this.deviceName = device.name || "CattleVision-RFID";
+      device.addEventListener("gattserverdisconnected", this.onGattDisconnectedBound);
 
-      // Listener para desconexão acidental
-      device.addEventListener("gattserverdisconnected", () => {
-        this.setStatus("disconnected");
-        this.playAudioFeedback("disconnect");
-        this.characteristic = null;
-      });
-
-      // Conecta ao GATT Server do ESP32
-      const server = await device.gatt.connect();
-
-      // Obtém o serviço primário
-      const service = await server.getPrimaryService(RFID_SERVICE_UUID);
-
-      // Obtém a característica de notificação da tag
-      const characteristic = await service.getCharacteristic(RFID_CHARACTERISTIC_UUID);
+      const characteristic = await this.subscribeGattCharacteristic(device);
       this.characteristic = characteristic;
-
-      // Ativa as notificações do ESP32
-      await characteristic.startNotifications();
-
-      characteristic.addEventListener(
-        "characteristicvaluechanged",
-        (event: any) => this.handleCharacteristicValue(event)
-      );
 
       this.setStatus("connected");
       this.playAudioFeedback("success");
@@ -222,45 +253,68 @@ class BluetoothRfidService {
       return true;
     } catch (err: any) {
       console.warn("[BluetoothRfid] Falha na conexão:", err);
-      // O usuário pode ter cancelado a janela de pareamento
-      if (err.name === "NotFoundError" || err.message?.includes("User cancelled")) {
+      this.detachDevice(true);
+      this.deviceName = "";
+      if (err?.name === "NotFoundError" || err?.message?.includes("User cancelled")) {
         this.setStatus("disconnected");
       } else {
-        this.setStatus("error", err.message || "Erro ao conectar ao leitor RFID.");
+        this.setStatus("error", err?.message || "Erro ao conectar ao leitor RFID.");
       }
       return false;
     }
   }
 
   /**
+   * Conecta ao servidor GATT e ativa notificações com uma tentativa de recuperação
+   * caso a descoberta de serviços do stack BLE do celular ainda esteja estabilizando.
+   */
+  private async subscribeGattCharacteristic(device: any): Promise<any> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(RFID_SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(RFID_CHARACTERISTIC_UUID);
+        await characteristic.startNotifications();
+        characteristic.addEventListener(
+          "characteristicvaluechanged",
+          this.onCharacteristicChangedBound
+        );
+        return characteristic;
+      } catch (err) {
+        lastError = err;
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  /**
    * Desconecta manualmente do dispositivo ESP32.
    */
   public disconnect(): void {
-    if (this.device && this.device.gatt?.connected) {
-      this.device.gatt.disconnect();
-    }
+    this.detachDevice(true);
+    this.deviceName = "";
     this.setStatus("disconnected");
-    this.device = null;
-    this.characteristic = null;
   }
 
   /**
    * Processa o payload binário emitido pelo ESP32 via notificação BLE.
    */
   private handleCharacteristicValue(event: any) {
-    const value: DataView = event.target.value;
+    const value: DataView = event?.target?.value;
     if (!value || value.byteLength === 0) return;
 
-    // Decodifica a string ASCII enviada pelo ESP32
     const decoder = new TextDecoder("utf-8");
     const rawString = decoder.decode(value);
-
-    // Limpa quebras de linha e caracteres espúrios
     const cleanTag = rawString.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 
-    if (!cleanTag) return;
+    // Ignora ruído curto ou UID totalmente zerado enviado por leitura incompleta
+    if (cleanTag.length < 2 || /^0+$/.test(cleanTag)) return;
 
-    // Debounce: ignora se a mesma tag foi lida nos últimos 2.5 segundos
+    // Debounce local: evita disparos repetidos em janela inferior a 2.5s
     const now = Date.now();
     if (cleanTag === this.lastTag && now - this.lastTagTime < 2500) {
       return;
@@ -272,34 +326,19 @@ class BluetoothRfidService {
     this.playAudioFeedback("read");
     this.triggerHaptic([100]);
 
-    const detail: RfidEventDetail = {
+    this.dispatchTagEvent({
       tag: cleanTag,
       timestamp: now,
       source: "ble",
-    };
-
-    // Dispara evento global no window para qualquer ouvinte do app
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("cattlevision:rfid-read", { detail }));
-    }
-
-    // Notifica listeners registrados
-    this.tagListeners.forEach((listener) => {
-      try {
-        listener(detail);
-      } catch (err) {
-        console.error("[BluetoothRfid] Erro no listener:", err);
-      }
     });
   }
 
   /**
-   * Emite manualmente uma leitura de tag (usado pelo Simulador / Leitura Manual para testes
-   * ou em dispositivos sem Web Bluetooth como iPhone Safari).
+   * Emite manualmente uma leitura de tag (usado pelo Simulador / Leitura Manual).
    */
   public emitManualTag(tag: string, source: "manual" | "simulation" = "manual") {
     const cleanTag = tag.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().trim();
-    if (!cleanTag) return;
+    if (cleanTag.length < 2 || /^0+$/.test(cleanTag)) return;
 
     const now = Date.now();
     this.lastTag = cleanTag;
@@ -308,12 +347,14 @@ class BluetoothRfidService {
     this.playAudioFeedback("read");
     this.triggerHaptic([80]);
 
-    const detail: RfidEventDetail = {
+    this.dispatchTagEvent({
       tag: cleanTag,
       timestamp: now,
       source,
-    };
+    });
+  }
 
+  private dispatchTagEvent(detail: RfidEventDetail) {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("cattlevision:rfid-read", { detail }));
     }
@@ -322,11 +363,10 @@ class BluetoothRfidService {
       try {
         listener(detail);
       } catch (err) {
-        console.error("[BluetoothRfid] Erro no listener manual:", err);
+        console.error("[BluetoothRfid] Erro no listener:", err);
       }
     });
   }
 }
 
-// Instância singleton global do serviço
 export const bluetoothRfid = new BluetoothRfidService();

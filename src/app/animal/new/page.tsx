@@ -3,7 +3,7 @@
 /**
  * Cadastro de Novo Animal em Seções (`src/app/animal/new/page.tsx`).
  */
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2,
@@ -54,7 +54,7 @@ function NewAnimalForm() {
   const [loading, setLoading] = useState(false);
   const [goToCamera, setGoToCamera] = useState(true);
 
-  const initialTag = (searchParams.get("tag") ?? "").toUpperCase();
+  const initialTag = normalizeTag(searchParams.get("tag") ?? "");
 
   const [formData, setFormData] = useState<AnimalFormState>({
     tag: initialTag,
@@ -78,6 +78,18 @@ function NewAnimalForm() {
   const [bleDeviceName, setBleDeviceName] = useState("");
   const [bleScannedNow, setBleScannedNow] = useState(false);
 
+  const currentTagRef = useRef(formData.tag);
+  useEffect(() => {
+    currentTagRef.current = formData.tag;
+  }, [formData.tag]);
+
+  useEffect(() => {
+    if (initialTag) {
+      currentTagRef.current = initialTag;
+      setFormData((prev) => (prev.tag === initialTag ? prev : { ...prev, tag: initialTag }));
+    }
+  }, [initialTag]);
+
   useEffect(() => {
     setBleSupported(bluetoothRfid.isSupported());
     setBleStatus(bluetoothRfid.getStatus());
@@ -85,16 +97,16 @@ function NewAnimalForm() {
 
     const unsubStatus = bluetoothRfid.onStatusChange((status, devName, errMsg) => {
       setBleStatus(status);
-      if (devName) setBleDeviceName(devName);
+      setBleDeviceName(status === "connected" ? devName || "" : "");
       if (status === "error" && errMsg) toast(errMsg, "error");
     });
 
     const unsubTag = bluetoothRfid.onTag((detail) => {
       const normalized = normalizeTag(detail.tag);
-      setFormData((prev) => ({ ...prev, tag: normalized }));
       setBleScannedNow(true);
-      bluetoothRfid.playAudioFeedback("read");
-      bluetoothRfid.triggerHaptic([80, 40, 80]);
+      if (currentTagRef.current === normalized) return;
+      currentTagRef.current = normalized;
+      setFormData((prev) => ({ ...prev, tag: normalized }));
       toast(`Código lido via Bluetooth: ${normalized}`, "success");
     });
 
