@@ -26,6 +26,7 @@ import {
   Activity,
   SwitchCamera,
   Compass,
+  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import { compressImageFile, formatBytes } from "@/lib/image-client";
@@ -40,7 +41,14 @@ import {
   warmUpLocalVisionModels,
 } from "@/lib/local-onnx";
 import { enqueueSync } from "@/lib/sync";
-import { apiFetch, apiUpload } from "@/lib/api";
+import {
+  apiFetch,
+  apiUpload,
+  drainIcsQueue,
+  invalidateApiCache,
+  reloadAnimalConfirmingPhoto,
+} from "@/lib/api";
+import { emitDataSyncedEvent } from "@/lib/useAutoRefresh";
 
 type Screen = "viewfinder" | "preview" | "uploading" | "done" | "error";
 
@@ -145,6 +153,13 @@ function CameraContent() {
 
   const [savedOffline, setSavedOffline] = useState(false);
   const [uploadErr, setUploadErr] = useState("");
+  const [uploadedPhotoId, setUploadedPhotoId] = useState<string | null>(null);
+  const [autoIcs, setAutoIcs] = useState<{
+    status: "calculating" | "CALCULATED" | "QUEUED" | "FAILED";
+    score: number | null;
+    classification?: string;
+  } | null>(null);
+  const uploadSeqRef = useRef(0);
 
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("");
@@ -599,6 +614,9 @@ function CameraContent() {
     setScreen("uploading");
     setUploadErr("");
     setSavedOffline(false);
+    setUploadedPhotoId(null);
+    setAutoIcs(null);
+    const seq = ++uploadSeqRef.current;
 
     const fileName = `rear_${animalId}_${Date.now()}.jpg`;
     const fd = new FormData();
@@ -612,6 +630,8 @@ function CameraContent() {
 
     try {
       const data = await apiUpload<any>("/api/photos/upload", fd);
+      const savedPhotoId: string | null = data?.photo?.id || null;
+      setUploadedPhotoId(savedPhotoId);
 
       if (typeof data?.score === "number") {
         setPreviewAnalysis((prev) => ({
@@ -619,11 +639,65 @@ function CameraContent() {
           lowQuality: Boolean(data.lowQuality),
           source: "yolo-onnx",
           localRuntime: prev?.localRuntime,
-          feedback: prev?.feedback || "Foto anatômica registrada para avaliação de ICS.",
+          feedback: prev?.feedback || "Foto anatômica registrada e enviada para avaliação automática de ICS.",
           box: prev?.box,
         }));
       }
+
+      setAutoIcs({ status: "calculating", score: null });
       setScreen("done");
+
+      // Garante confirmação de leitura no banco lento e dispara avaliação automática de ICS
+      void (async () => {
+        try {
+          await reloadAnimalConfirmingPhoto(animalId, savedPhotoId);
+          invalidateApiCache("/api/animals");
+          invalidateApiCache("/api/admin");
+          emitDataSyncedEvent();
+
+          let resolvedStatus: "CALCULATED" | "QUEUED" | "FAILED" = "QUEUED";
+          let resolvedScore: number | null = null;
+          let resolvedClassification: string | undefined;
+
+          await drainIcsQueue({
+            animalId,
+            maxSteps: 10,
+            onProgress: (info) => {
+              if (!savedPhotoId || info.lastPhotoId === savedPhotoId) {
+                resolvedScore = info.lastScore ?? null;
+                resolvedStatus =
+                  info.lastStatus === "CALCULATED"
+                    ? "CALCULATED"
+                    : info.lastStatus === "FAILED"
+                      ? "FAILED"
+                      : "QUEUED";
+              }
+            },
+          });
+
+          const confirmed = await reloadAnimalConfirmingPhoto<any>(animalId, savedPhotoId, 3);
+          const photoRecord = confirmed?.photos?.find((p: any) => p.id === savedPhotoId);
+          if (photoRecord?.ics) {
+            if (photoRecord.ics.status === "CALCULATED") resolvedStatus = "CALCULATED";
+            else if (photoRecord.ics.status === "FAILED") resolvedStatus = "FAILED";
+            if (typeof photoRecord.ics.score === "number") resolvedScore = photoRecord.ics.score;
+            resolvedClassification = photoRecord.ics.classification;
+          }
+
+          emitDataSyncedEvent();
+          if (uploadSeqRef.current === seq) {
+            setAutoIcs({
+              status: resolvedStatus,
+              score: resolvedScore,
+              classification: resolvedClassification,
+            });
+          }
+        } catch {
+          if (uploadSeqRef.current === seq) {
+            setAutoIcs({ status: "QUEUED", score: null });
+          }
+        }
+      })();
     } catch (err: any) {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         try {
@@ -653,6 +727,7 @@ function CameraContent() {
   };
 
   const retake = () => {
+    uploadSeqRef.current += 1;
     blobRef.current = null;
     if (previewRef.current.startsWith("blob:")) {
       URL.revokeObjectURL(previewRef.current);
@@ -663,6 +738,8 @@ function CameraContent() {
     setPreviewAnalysis(null);
     setScoringPreview(false);
     setSavedOffline(false);
+    setUploadedPhotoId(null);
+    setAutoIcs(null);
     setUploadErr("");
     setScreen("viewfinder");
   };
@@ -702,33 +779,70 @@ function CameraContent() {
             ) : (
               <>
                 Foto de <strong className="text-white">{animalName || "animal"}</strong> salva com
-                sucesso e pronta para avaliação de ICS na ficha.
+                sucesso; avaliação automática de ICS iniciada na ficha.
               </>
             )}
           </p>
 
-          {finalScore !== null && !savedOffline && (
-            <div className="mt-4 flex justify-center">
-              <div
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold border ${
-                  finalScore >= 40
-                    ? "bg-[#184E3A]/60 text-[#74C69D] border-[#2E7D5B]/50"
-                    : "bg-[#B45309]/20 text-amber-200 border-[#B45309]/40"
-                }`}
-              >
-                <Activity className="w-3.5 h-3.5" />
-                <span>Enquadramento: {Math.round(finalScore)}%</span>
-              </div>
+          {(finalScore !== null || autoIcs) && !savedOffline && (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {finalScore !== null && (
+                <div
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold border ${
+                    finalScore >= 40
+                      ? "bg-[#184E3A]/60 text-[#74C69D] border-[#2E7D5B]/50"
+                      : "bg-[#B45309]/20 text-amber-200 border-[#B45309]/40"
+                  }`}
+                >
+                  <Activity className="w-3.5 h-3.5" />
+                  <span>Enquadramento: {Math.round(finalScore)}%</span>
+                </div>
+              )}
+
+              {autoIcs && (
+                <div
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-xs font-semibold border ${
+                    autoIcs.status === "CALCULATED"
+                      ? "bg-[#184E3A]/60 text-[#74C69D] border-[#2E7D5B]/50"
+                      : autoIcs.status === "FAILED"
+                        ? "bg-red-500/15 text-red-200 border-red-500/35"
+                        : "bg-amber-500/15 text-amber-200 border-amber-500/35"
+                  }`}
+                >
+                  {autoIcs.status === "calculating" ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {autoIcs.status === "calculating"
+                      ? "Calculando ICS…"
+                      : autoIcs.status === "CALCULATED" && typeof autoIcs.score === "number"
+                        ? `ICS ${autoIcs.score.toFixed(2).replace(".", ",")}${
+                            autoIcs.classification ? ` · ${autoIcs.classification}` : ""
+                          }`
+                        : autoIcs.status === "FAILED"
+                          ? "ICS não identificado"
+                          : "ICS na fila"}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         <div className="flex flex-col gap-3 w-full max-w-xs mt-2">
           <button
-            onClick={() => router.push(`/animal/${animalId}`)}
+            onClick={() =>
+              router.push(
+                uploadedPhotoId
+                  ? `/animal/${animalId}?uploadedPhotoId=${encodeURIComponent(uploadedPhotoId)}`
+                  : `/animal/${animalId}`
+              )
+            }
             className="btn-primary w-full py-3.5 text-sm"
           >
-            Ver ficha e avaliar ICS
+            Ver ficha do animal
           </button>
           <button
             onClick={retake}

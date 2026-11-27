@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getSyncQueue, clearSyncItem, SyncQueuePayload } from '@/lib/sync';
-import { getApiUrl, getStoredToken, invalidateApiCache } from '@/lib/api';
+import { drainIcsQueue, getApiUrl, getStoredToken, invalidateApiCache } from '@/lib/api';
+import { emitDataSyncedEvent } from '@/lib/useAutoRefresh';
 import { WifiOff, RefreshCw } from 'lucide-react';
 
 export function SyncManager() {
@@ -28,6 +29,7 @@ export function SyncManager() {
 
     setSyncing(true);
     let syncedAny = false;
+    const uploadedAnimalIds = new Set<string>();
     const baseUrl = getApiUrl();
 
     for (const item of queue) {
@@ -70,6 +72,13 @@ export function SyncManager() {
 
         const res = await fetch(targetUrl, { method: item.method, body: bodyData, headers });
         if (res.ok || res.status === 409) {
+          if (res.ok && item.isFormData && item.url.includes('/photos/upload')) {
+            const payload = await res.json().catch(() => null);
+            const uploadedAnimalId = payload?.photo?.animalId;
+            if (typeof uploadedAnimalId === 'string' && uploadedAnimalId) {
+              uploadedAnimalIds.add(uploadedAnimalId);
+            }
+          }
           await clearSyncItem(item.id);
           syncedAny = true;
         }
@@ -81,6 +90,14 @@ export function SyncManager() {
     if (syncedAny) {
       invalidateApiCache('/api/animals');
       invalidateApiCache('/api/admin');
+      emitDataSyncedEvent();
+
+      if (uploadedAnimalIds.size > 0) {
+        for (const aId of uploadedAnimalIds) {
+          await drainIcsQueue({ animalId: aId, maxSteps: 15 }).catch(() => {});
+        }
+        emitDataSyncedEvent();
+      }
     }
 
     await refreshPendingCount();

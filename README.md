@@ -48,3 +48,14 @@ npm run dev
 
 Variável principal:
 - `NEXT_PUBLIC_API_URL`: URL base da API do `cattle-vision-backend` (ex.: `http://localhost:4000` ou domínio de produção).
+
+---
+
+## Melhorias para a Próxima Equipe (Roadmap / Handoff)
+
+Para evoluir a precisão zootécnica e a escalabilidade da plataforma em campo, recomenda-se a seguinte trilha de evolução:
+
+1. **Utilizar o sistema de coleta desenvolvido (`CattleCapture`) para gerar um dataset próprio**: Realizar campanhas de coleta padronizadas em campo usando o fluxo guiado de câmera e metadados zootécnicos já estruturados para construir um banco de imagens representativo do rebanho alvo.
+2. **Consultar especialista para realizar anotações do dataset**: Trabalhar em conjunto com um médico-veterinário ou zootecnista para auditar, classificar e rotular as imagens com notas confiáveis na escala de Índice de Condição Corporal (ICS 1,0–5,0) e critérios de manejo.
+3. **Separar a IA de ICS do backend principal (se necessário)**: Caso o volume de requisições simultâneas, o peso do modelo ou limites de memória/timeout em Serverless exijam isolamento, desacoplar o motor de inferência ICS (`YOLO26m` / futuro modelo) do `cattle-vision-backend` para um serviço/worker dedicado mantendo a fila persistente `IcsJob` como contrato.
+4. **Adicionar a nova IA de ICS gerada com o dataset próprio no sistema**: Treinar o novo modelo sobre o dataset próprio anotado e integrá-lo ao módulo de avaliação (`IcsService` / `IcsQueueService`) no **CattleVision**, substituindo ou versionando o modelo atual.

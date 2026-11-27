@@ -27,6 +27,7 @@ import {
   scanRfidTag,
 } from "@/lib/api";
 import { bluetoothRfid, BluetoothStatus, RfidEventDetail } from "@/lib/bluetooth-rfid";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import AppShell from "@/components/AppShell";
 import { useToast } from "@/components/ui/Toast";
 
@@ -147,6 +148,28 @@ export default function IdentifyPage() {
       unsubTag();
     };
   }, [cachedAnimals, handleProcessRfid, toast]);
+
+  useAutoRefresh(async () => {
+    invalidateApiCache(ANIMALS_SUMMARY_ENDPOINT);
+    const list = await apiFetchCached<Animal[]>(ANIMALS_SUMMARY_ENDPOINT, 0);
+    if (Array.isArray(list)) setAllAnimals(list);
+
+    const activeAnimalId = scanResult?.registered ? scanResult.animal?.id : null;
+    if (activeAnimalId) {
+      invalidateApiCache(`/api/animals/${activeAnimalId}`);
+      const freshAnimal = await apiFetchCached<Animal>(
+        `/api/animals/${encodeURIComponent(activeAnimalId)}`,
+        0
+      ).catch(() => null);
+      if (freshAnimal) {
+        setScanResult((prev) =>
+          prev && prev.registered && prev.animal?.id === activeAnimalId
+            ? { ...prev, animal: freshAnimal }
+            : prev
+        );
+      }
+    }
+  });
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

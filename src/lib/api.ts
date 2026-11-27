@@ -229,6 +229,7 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiFetchOptio
 
   const response = await fetch(url, {
     ...options,
+    cache: options.cache ?? "no-store",
     headers,
     body,
   });
@@ -734,6 +735,42 @@ export async function processNextIcsJob(animalId?: string): Promise<{
 }
 
 /**
+ * Recarrega os dados de um animal ignorando caches e, caso um upload recente tenha sido
+ * confirmado no servidor, aguarda com backoff curto até a nova foto refletir na leitura
+ * (mitiga latência de gravação/pooler em bancos remotos lentos).
+ */
+export async function reloadAnimalConfirmingPhoto<
+  T extends { photos?: Array<{ id: string }> }
+>(animalId: string, expectedPhotoId?: string | null, maxAttempts = 6): Promise<T | null> {
+  const endpoint = `/api/animals/${encodeURIComponent(animalId)}`;
+  let latest: T | null = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    invalidateApiCache("/api/animals");
+    invalidateApiCache("/api/admin");
+    try {
+      const data = await apiFetchCached<T>(endpoint, 0);
+      latest = data;
+      if (!expectedPhotoId) {
+        return data;
+      }
+      if (Array.isArray(data?.photos) && data.photos.some((p) => p.id === expectedPhotoId)) {
+        return data;
+      }
+    } catch {
+      // Tenta novamente dentro da janela configurada caso o banco esteja lento
+    }
+
+    if (attempt < maxAttempts - 1) {
+      const delayMs = Math.min(2000, 650 + attempt * 350);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return latest;
+}
+
+/**
  * Drena sequencialmente os jobs da fila persistente de ICS no backend (1 foto por requisição
  * para respeitar o timeout e memória do ambiente Serverless do Vercel).
  */
@@ -759,6 +796,8 @@ export async function drainIcsQueue(options?: {
       break;
     }
     processedCount += 1;
+    invalidateApiCache("/api/animals");
+    invalidateApiCache("/api/admin/animals");
     options?.onProgress?.({
       processedCount,
       remainingQueued,

@@ -32,6 +32,7 @@ import {
   readPersistedApiCache,
 } from "@/lib/api";
 import { getHerdSnapshot, saveHerdSnapshot } from "@/lib/sync";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { useAuth } from "@/lib/auth-context";
 import AppShell from "@/components/AppShell";
 import { useToast } from "@/components/ui/Toast";
@@ -376,6 +377,11 @@ export default function DashboardPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, user, router, loadAnimals]);
+
+  useAutoRefresh(
+    () => loadAnimals(true),
+    { enabled: Boolean(!authLoading && user) }
+  );
 
   const stats = useMemo(() => {
     const totalAnimals = animals.length;

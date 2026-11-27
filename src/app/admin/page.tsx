@@ -39,6 +39,7 @@ import {
   drainIcsQueue,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useAutoRefresh } from '@/lib/useAutoRefresh';
 import { useToast } from '@/components/ui/Toast';
 import PhotoLightbox from '@/components/PhotoLightbox';
 import { AppShell } from '@/components/AppShell';
@@ -160,6 +161,11 @@ export default function AdminPage() {
       }
     }
   }, [authLoading, user, isAdmin, router, loadData]);
+
+  useAutoRefresh(
+    () => loadData(true),
+    { enabled: Boolean(!authLoading && user && isAdmin && !recalibrating && !regeneratingIcs) }
+  );
 
   const stats = useMemo(() => {
     const totalAnimals = animals.length;

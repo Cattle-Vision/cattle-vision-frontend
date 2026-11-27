@@ -30,9 +30,11 @@ import {
   apiFetch,
   apiFetchCached,
   getApiCacheSnapshot,
+  invalidateApiCache,
   setCachedUser,
   setStoredToken,
 } from "@/lib/api";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { Animal, User } from "@/lib/types";
 import { getSyncQueue } from "@/lib/sync";
 import { bluetoothRfid, BluetoothStatus } from "@/lib/bluetooth-rfid";
@@ -112,6 +114,28 @@ export default function ProfilePage() {
       .then((q) => setPendingSyncCount(q.length))
       .catch(() => {});
   }, [isAuthenticated]);
+
+  useAutoRefresh(
+    async () => {
+      invalidateApiCache("/api/animals?summary=1");
+      const [animalsRes, queueRes] = await Promise.all([
+        apiFetchCached<Animal[]>("/api/animals?summary=1", 0).catch(() => null),
+        getSyncQueue().catch(() => null),
+        refreshSession(true).catch(() => null),
+      ]);
+      if (Array.isArray(animalsRes)) {
+        const photos = animalsRes.reduce(
+          (acc, a) => acc + (a.photoCount ?? a.photos?.length ?? 0),
+          0
+        );
+        setHerdStats({ animals: animalsRes.length, photos });
+      }
+      if (Array.isArray(queueRes)) {
+        setPendingSyncCount(queueRes.length);
+      }
+    },
+    { enabled: Boolean(!authLoading && isAuthenticated && !savingProfile) }
+  );
 
   useEffect(() => {
     setBleSupported(bluetoothRfid.isSupported());

@@ -44,14 +44,17 @@ import {
   apiFetch,
   apiFetchCached,
   apiUpload,
+  drainIcsQueue,
   getApiCacheSnapshot,
   invalidateApiCache,
   readPersistedApiCache,
   recalibratePhotosSequentially,
+  reloadAnimalConfirmingPhoto,
   addCollaborator,
   removeCollaborator,
   transferOwnership,
 } from "@/lib/api";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { useAuth } from "@/lib/auth-context";
 
 interface PendingGalleryPhoto {
@@ -109,6 +112,15 @@ export default function AnimalProfilePage() {
     Boolean(b && BREEDS.filter((preset) => preset !== "Outra").includes(b as any));
 
   const [editing, setEditing] = useState(false);
+  const editingRef = useRef(false);
+  editingRef.current = editing;
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState(() => {
     const initialBreed = cachedAnimal?.breed ?? "Nelore";
@@ -185,22 +197,24 @@ export default function AnimalProfilePage() {
         const data = await apiFetchCached<Animal>(endpoint, forceRefresh ? 0 : 12_000);
         if (data) {
           setAnimal(data);
-          const preset = isPresetBreed(data.breed);
-          setEditForm({
-            tag: data.tag,
-            name: data.name || "",
-            breed: preset ? data.breed : "Outra",
-            customBreed: preset ? "" : data.breed,
-            sex: data.sex,
-            weight: String(data.weight),
-            age: String(data.age),
-            length: data.length != null ? String(data.length) : "",
-            location: data.location || "",
-            locationAddress: data.locationAddress || "",
-            latitude: data.latitude != null ? String(data.latitude) : "",
-            longitude: data.longitude != null ? String(data.longitude) : "",
-            observations: data.observations || "",
-          });
+          if (!editingRef.current) {
+            const preset = isPresetBreed(data.breed);
+            setEditForm({
+              tag: data.tag,
+              name: data.name || "",
+              breed: preset ? data.breed : "Outra",
+              customBreed: preset ? "" : data.breed,
+              sex: data.sex,
+              weight: String(data.weight),
+              age: String(data.age),
+              length: data.length != null ? String(data.length) : "",
+              location: data.location || "",
+              locationAddress: data.locationAddress || "",
+              latitude: data.latitude != null ? String(data.latitude) : "",
+              longitude: data.longitude != null ? String(data.longitude) : "",
+              observations: data.observations || "",
+            });
+          }
         }
       } catch (err: any) {
         if (err?.message?.includes("401") || err?.message?.includes("Token")) {
@@ -221,8 +235,36 @@ export default function AnimalProfilePage() {
         setLoading(false);
       }
     }
-    loadAnimal(false);
+
+    const uploadedPhotoId =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("uploadedPhotoId")
+        : null;
+
+    if (id && uploadedPhotoId) {
+      if (typeof window !== "undefined") {
+        const cleanUrl = `${window.location.pathname}`;
+        window.history.replaceState(null, "", cleanUrl);
+      }
+      reloadAnimalConfirmingPhoto<Animal>(id, uploadedPhotoId)
+        .then((confirmed) => {
+          if (confirmed && mountedRef.current) {
+            setAnimal(confirmed);
+          }
+        })
+        .finally(() => {
+          if (mountedRef.current) setLoading(false);
+        });
+      return;
+    }
+
+    loadAnimal(Boolean(cachedAnimal));
   }, [id, cachedAnimal, loadAnimal]);
+
+  useAutoRefresh(
+    () => loadAnimal(true),
+    { enabled: Boolean(id && user && !uploading) }
+  );
 
   const copyTag = () => {
     if (!animal) return;
@@ -276,18 +318,95 @@ export default function AnimalProfilePage() {
         );
       }
 
-      const data = await apiUpload<{ photo: Photo }>("/api/photos/upload", fd);
+      const data = await apiUpload<{ photo: Photo; icsQueued?: boolean }>("/api/photos/upload", fd);
       if (data?.photo) {
+        const uploadedPhoto: Photo = {
+          ...(data.photo as Photo),
+          ics: data.photo.ics ?? {
+            aiAvailable: true,
+            status: "QUEUED",
+            score: null,
+            scale: "1.0 - 5.0 (Padrão Zootécnico Bovino)",
+            classification: "Na fila",
+            slaughterReady: null,
+            slaughterStatus: "IN_DEVELOPMENT",
+            slaughterLabel: "Na fila",
+            slaughterReason: "Foto enviada automaticamente para avaliação de ICS.",
+            morphologicalFeatures: null,
+            contourPoints: null,
+            aiModelVersion: null,
+            message: "Foto enviada para fila automática de ICS.",
+            source: "internal-backend",
+            estimatedAt: new Date().toISOString(),
+          },
+        };
+        const targetAnimalId = animal.id;
         setAnimal((prev) =>
-          prev ? { ...prev, photos: [data.photo as Photo, ...(prev.photos ?? [])] } : prev
+          prev
+            ? {
+                ...prev,
+                photos: [
+                  uploadedPhoto,
+                  ...(prev.photos ?? []).filter((p) => p.id !== uploadedPhoto.id),
+                ],
+              }
+            : prev
         );
         toast(
-          `Foto salva (enquadramento ${Math.round(
+          `Foto salva (${Math.round(
             data.photo.score ?? pendingPhoto.scoreResult?.score ?? 0
-          )}%).`,
+          )}%)! Calculando ICS automaticamente…`,
           "success"
         );
         setPendingPhoto(null);
+
+        // Confirma leitura persistida em banco lento e drena automaticamente o job ICS criado no upload
+        void (async () => {
+          const confirmed = await reloadAnimalConfirmingPhoto<Animal>(
+            targetAnimalId,
+            uploadedPhoto.id
+          );
+          if (confirmed && mountedRef.current) {
+            setAnimal(confirmed);
+          }
+
+          try {
+            const icsResult: { status?: string; score: number | null } = { score: null };
+            const drain = await drainIcsQueue({
+              animalId: targetAnimalId,
+              maxSteps: 10,
+              onProgress: (info) => {
+                if (info.lastPhotoId === uploadedPhoto.id) {
+                  icsResult.status = info.lastStatus;
+                  icsResult.score = info.lastScore ?? null;
+                }
+                if (mountedRef.current) {
+                  void loadAnimal(true);
+                }
+              },
+            });
+
+            if (mountedRef.current) {
+              await loadAnimal(true);
+              if (
+                drain.processedCount > 0 &&
+                icsResult.status === "CALCULATED" &&
+                typeof icsResult.score === "number"
+              ) {
+                toast(
+                  `ICS calculado automaticamente: ${icsResult.score.toFixed(2).replace(".", ",")}.`,
+                  "success"
+                );
+              } else if (drain.processedCount > 0 && icsResult.status === "FAILED") {
+                toast("Foto salva, mas o animal não pôde ser identificado para ICS.", "info");
+              }
+            }
+          } catch {
+            if (mountedRef.current) {
+              void loadAnimal(true);
+            }
+          }
+        })();
       }
     } catch (err: any) {
       toast(err?.message || "Falha ao enviar foto.", "error");
